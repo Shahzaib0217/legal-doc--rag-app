@@ -842,6 +842,188 @@ select.form-control {
   color: var(--color-text-secondary);
 }
 
+/* Selected Files */
+.selected-files {
+  margin-top: var(--space-16);
+  padding: var(--space-16);
+  background: var(--color-surface);
+  border-radius: var(--radius-base);
+  border: 1px solid var(--color-border);
+}
+
+.selected-files h4 {
+  margin: 0 0 var(--space-12) 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+}
+
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  margin-bottom: var(--space-16);
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-8);
+  background: var(--color-bg-1);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+}
+
+.file-item i {
+  color: var(--color-red-500);
+}
+
+.file-item span {
+  flex: 1;
+  color: var(--color-text);
+}
+
+.remove-file {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: var(--space-4);
+  border-radius: var(--radius-sm);
+  transition: all var(--duration-fast) var(--ease-standard);
+}
+
+.remove-file:hover {
+  background: var(--color-bg-4);
+  color: var(--color-red-500);
+}
+
+.process-btn {
+  width: 100%;
+  padding: var(--space-12) var(--space-16);
+  background: var(--color-primary);
+  color: var(--color-white);
+  border: none;
+  border-radius: var(--radius-base);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-standard);
+}
+
+.process-btn:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.process-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Exhibits Styles */
+.exhibits-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  margin-top: var(--space-16);
+}
+
+.exhibit-item {
+  padding: var(--space-16);
+  background: var(--color-bg-1);
+  border-radius: var(--radius-base);
+  border: 1px solid var(--color-border);
+}
+
+.exhibit-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-12);
+  margin-bottom: var(--space-12);
+}
+
+.exhibit-number {
+  background: var(--color-primary);
+  color: var(--color-white);
+  padding: var(--space-4) var(--space-8);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  min-width: fit-content;
+}
+
+.exhibit-heading {
+  flex: 1;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+  line-height: 1.4;
+}
+
+.exhibit-amount {
+  background: var(--color-bg-3);
+  color: var(--color-text);
+  padding: var(--space-4) var(--space-8);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border: 1px solid var(--color-border);
+}
+
+.exhibit-summary {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  text-align: justify;
+}
+
+.injury-list {
+  margin: var(--space-12) 0;
+  padding-left: var(--space-20);
+}
+
+.injury-list li {
+  margin-bottom: var(--space-4);
+  color: var(--color-text);
+}
+
+/* Exhibit Styles */
+.exhibit-item {
+  margin-bottom: var(--space-16);
+  padding: var(--space-16);
+  background: var(--color-bg-1);
+  border-radius: var(--radius-base);
+  border: 1px solid var(--color-border);
+}
+
+.exhibit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-8);
+}
+
+.exhibit-header strong {
+  color: var(--color-text);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.4;
+  flex: 1;
+  margin-right: var(--space-12);
+}
+
+.exhibit-amount {
+  color: var(--color-primary);
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-lg);
+  white-space: nowrap;
+}
+
+.exhibit-summary {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  text-align: justify;
+}
+
 /* Document List */
 .document-list {
   display: flex;

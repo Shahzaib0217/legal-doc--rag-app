@@ -12,6 +12,7 @@
     "@fortawesome/fontawesome-free": "^7.0.1",
     "@google/generative-ai": "^0.24.1",
     "@types/pdf-parse": "^1.1.5",
+    "docx": "^9.5.1",
     "next": "^15.5.2",
     "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^5.4.149",

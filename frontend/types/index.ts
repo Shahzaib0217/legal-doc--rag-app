@@ -45,6 +45,29 @@ export interface PoliceReportData {
   violations: string[];
 }
 
+// Simple structure matching your API response exactly
+export interface Exhibit {
+  fileName: string;
+  heading: string;
+  summary: string;
+  expenses: number;
+}
+
+export interface GlobalAnalysis {
+  natureOfClaim: string;
+  liability: string;
+  injuries: string[];
+  damages: string;
+  facts: string;
+}
+
+export interface ApiResponse {
+  success: boolean;
+  exhibits: Exhibit[];
+  totalExpenses: number;
+  globalAnalysis: GlobalAnalysis;
+}
+
 export interface Document {
   name: string;
   type: "police" | "medical" | "medical_record" | "document";
@@ -60,13 +83,16 @@ export interface LetterData {
   injuries: string[];
   medicalTreatment: MedicalBill[];
   totalMedicalExpenses: number;
+  // Use the simple API response structure directly
+  apiData?: ApiResponse;
   suggestedContent?: {
-    facts: string;
-    liability: string;
-    injuries: string;
-    medical: string;
-    damages: string;
-    demand: string;
+    natureOfClaim?: string;
+    facts?: string;
+    liability?: string;
+    injuries?: string[] | string;
+    medical?: string;
+    damages?: string;
+    demand?: string;
   };
   suggestedHeadings?: {
     natureOfClaim?: string;

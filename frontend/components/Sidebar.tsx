@@ -1,200 +1,140 @@
-import React, { useRef } from "react";
-import { Document, MedicalBill, LetterData } from "@/types";
+import React, { useRef, useState } from "react";
+import { Exhibit, LetterData, ApiResponse } from "@/types";
 
 interface SidebarProps {
-  documents: Document[];
-  medicalBills: MedicalBill[];
+  exhibits: Exhibit[];
   letterData: LetterData;
-  onAddDocument: (doc: Document) => void;
-  onRemoveDocument: (index: number) => void;
   onUpdateCaseInfo: (
     field: keyof LetterData["caseInfo"],
     value: string
   ) => void;
   onUpdateLetterData: (data: LetterData) => void;
+  onApiResponse: (response: ApiResponse) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
-  documents,
-  medicalBills,
+  exhibits,
   letterData,
-  onAddDocument,
-  onRemoveDocument,
   onUpdateCaseInfo,
   onUpdateLetterData,
+  onApiResponse,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
-  const handleFileUpload = async (files: FileList | null) => {
-    if (!files) return;
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const pdfFiles = Array.from(files).filter(
+        (file) => file.type === "application/pdf"
+      );
 
-    const formData = new FormData();
-    Array.from(files).forEach((file) => {
-      if (file.type === "application/pdf") {
-        formData.append("pdfs", file);
+      if (pdfFiles.length === 0) {
+        alert("Please select PDF files only");
+        return;
       }
-    });
 
-    if (formData.getAll("pdfs").length === 0) {
-      alert("Please select PDF files only");
-      return;
+      setSelectedFiles((prev) => [...prev, ...pdfFiles]);
     }
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
 
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      const pdfFiles = Array.from(files).filter(
+        (file) => file.type === "application/pdf"
+      );
+
+      if (pdfFiles.length === 0) {
+        alert("Please drop PDF files only");
+        return;
+      }
+
+      setSelectedFiles((prev) => [...prev, ...pdfFiles]);
+    }
+  };
+
+  const removeSelectedFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleProcessFiles = async () => {
+    if (selectedFiles.length === 0) return;
+
+    setIsUploading(true);
     try {
-      // Show loading state
-      console.log("Processing PDFs...");
+      const formData = new FormData();
+      selectedFiles.forEach((file) => {
+        formData.append("pdfs", file);
+      });
 
       const response = await fetch("/api/process-pdf", {
         method: "POST",
         body: formData,
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
       const result = await response.json();
 
       if (result.success) {
-        // Process each extracted document
-        result.extractedData.forEach((docData: any, index: number) => {
-          const newDoc: Document = {
-            name: docData.fileName,
-            type: docData.documentType as Document["type"],
-            processed: true,
-            data: docData.extractedInfo || {},
-          };
-          onAddDocument(newDoc);
-        });
-
-        // Update letter data with combined information
-        if (result.combinedLetterData) {
-          const combined = result.combinedLetterData;
-
-          // Create updated letter data
-          const updatedLetterData = {
-            ...letterData,
-            caseInfo: {
-              ...letterData.caseInfo,
-              ...(combined.caseInfo.client && {
-                client: combined.caseInfo.client,
-              }),
-              ...(combined.caseInfo.dateOfLoss && {
-                dateOfLoss: combined.caseInfo.dateOfLoss,
-              }),
-              ...(combined.caseInfo.policyNumber && {
-                policyNumber: combined.caseInfo.policyNumber,
-              }),
-              ...(combined.caseInfo.claimNumber && {
-                claimNumber: combined.caseInfo.claimNumber,
-              }),
-            },
-            insuranceCompany: {
-              ...letterData.insuranceCompany,
-              ...(combined.insuranceCompany.name && {
-                name: combined.insuranceCompany.name,
-              }),
-            },
-            injuries: [...letterData.injuries, ...combined.injuries],
-            medicalTreatment: [
-              ...letterData.medicalTreatment,
-              ...combined.medicalTreatment,
-            ],
-            totalMedicalExpenses:
-              letterData.totalMedicalExpenses + combined.totalMedicalExpenses,
-            suggestedContent: combined.suggestedContent,
-          };
-
-          onUpdateLetterData(updatedLetterData);
-        }
-
-        console.log("PDFs processed successfully!");
+        onApiResponse(result);
+        setSelectedFiles([]); // Clear selected files after successful processing
       } else {
-        throw new Error("Processing failed");
+        alert("Error processing PDFs: " + result.error);
       }
     } catch (error) {
-      console.error("Error processing PDFs:", error);
-      alert("Failed to process PDF files. Please try again.");
-
-      // Fallback to simulation for now
-      Array.from(files).forEach((file) => {
-        if (file.type === "application/pdf") {
-          const docType = detectDocumentType(file.name);
-          const extractedData = simulateDataExtraction(docType);
-
-          const newDoc: Document = {
-            name: file.name,
-            type: docType,
-            processed: true,
-            data: extractedData,
-          };
-
-          onAddDocument(newDoc);
-        }
-      });
+      console.error("Upload error:", error);
+      alert("Failed to upload and process files");
+    } finally {
+      setIsUploading(false);
     }
   };
 
-  const detectDocumentType = (filename: string): Document["type"] => {
-    const name = filename.toLowerCase();
-    if (name.includes("police") || name.includes("report")) return "police";
-    if (
-      name.includes("medical") ||
-      name.includes("bill") ||
-      name.includes("invoice")
-    )
-      return "medical";
-    if (name.includes("record") || name.includes("chart"))
-      return "medical_record";
-    return "document";
-  };
+  const removeExhibit = (index: number) => {
+    const updatedExhibits = exhibits.filter((_, i) => i !== index);
+    // Update total expenses
+    const newTotal = updatedExhibits.reduce(
+      (sum, exhibit) => sum + exhibit.expenses,
+      0
+    );
 
-  const simulateDataExtraction = (docType: Document["type"]) => {
-    const templates = {
-      medical: {
-        provider: "Sample Medical Provider",
-        dateOfService: new Date().toLocaleDateString(),
-        amount: Math.floor(Math.random() * 5000) + 100,
-        services: ["Medical consultation", "Treatment provided"],
-        diagnosis: ["Sample diagnosis"],
-      },
-      police: {
-        dateOfIncident: new Date().toLocaleDateString(),
-        location: "Sample Location",
-        parties: {
-          plaintiff: letterData.caseInfo.client,
-          defendant: "Unknown Driver",
-        },
-        incidentDescription: "Vehicle collision incident",
-      },
-      medical_record: {
-        provider: "Sample Healthcare Provider",
-        findings: ["Sample medical findings"],
-        recommendations: ["Follow-up treatment recommended"],
-      },
-      document: { type: docType, content: "Document processed" },
+    const updatedLetterData = {
+      ...letterData,
+      totalMedicalExpenses: newTotal,
     };
 
-    return templates[docType];
-  };
+    onUpdateLetterData(updatedLetterData);
 
-  const getDocIcon = (type: Document["type"]) => {
-    const icons = {
-      police: "fa-file-alt",
-      medical: "fa-file-medical",
-      medical_record: "fa-notes-medical",
-      document: "fa-file",
+    // Create new API response with updated exhibits
+    const updatedApiResponse: ApiResponse = {
+      success: true,
+      exhibits: updatedExhibits,
+      totalExpenses: newTotal,
+      globalAnalysis: letterData.apiData?.globalAnalysis || {
+        natureOfClaim: "",
+        liability: "",
+        injuries: [],
+        damages: "",
+        facts: "",
+      },
     };
-    return icons[type] || "fa-file";
+
+    onApiResponse(updatedApiResponse);
   };
 
-  const totalExpenses = medicalBills.reduce(
-    (sum, bill) => sum + bill.amount,
+  const totalExpenses = exhibits.reduce(
+    (sum, exhibit) => sum + exhibit.expenses,
     0
   );
 
   return (
-    <aside className="sidebar">
+    <aside className="sidebar sidebar--left">
+      {/* Case Information */}
       <div className="sidebar-section">
         <h3>Case Information</h3>
         <div className="form-group">
@@ -204,6 +144,27 @@ const Sidebar: React.FC<SidebarProps> = ({
             className="form-control"
             value={letterData.caseInfo.client}
             onChange={(e) => onUpdateCaseInfo("client", e.target.value)}
+            placeholder="Enter client name"
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Policy Number</label>
+          <input
+            type="text"
+            className="form-control"
+            value={letterData.caseInfo.policyNumber}
+            onChange={(e) => onUpdateCaseInfo("policyNumber", e.target.value)}
+            placeholder="Enter policy number"
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Claim Number</label>
+          <input
+            type="text"
+            className="form-control"
+            value={letterData.caseInfo.claimNumber}
+            onChange={(e) => onUpdateCaseInfo("claimNumber", e.target.value)}
+            placeholder="Enter claim number"
           />
         </div>
         <div className="form-group">
@@ -215,93 +176,105 @@ const Sidebar: React.FC<SidebarProps> = ({
             onChange={(e) => onUpdateCaseInfo("dateOfLoss", e.target.value)}
           />
         </div>
-        <div className="form-group">
-          <label className="form-label">Policy Number</label>
-          <input
-            type="text"
-            className="form-control"
-            value={letterData.caseInfo.policyNumber}
-            onChange={(e) => onUpdateCaseInfo("policyNumber", e.target.value)}
-          />
-        </div>
       </div>
 
+      {/* PDF Upload */}
       <div className="sidebar-section">
         <h3>Upload Documents</h3>
         <div
           className="upload-area"
-          onClick={() => fileInputRef.current?.click()}
-          onDrop={(e) => {
-            e.preventDefault();
-            handleFileUpload(e.dataTransfer.files);
-          }}
+          onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
+          onClick={() => fileInputRef.current?.click()}
+          style={{ cursor: "pointer" }}
         >
-          <div className="upload-content">
-            <i className="fas fa-cloud-upload-alt"></i>
-            <p>Drop files here or click to browse</p>
-            <span className="upload-subtext">PDF files only</span>
-          </div>
+          <i className="fas fa-cloud-upload-alt"></i>
+          <p>Drop PDF files here or click to select</p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept=".pdf"
+            onChange={handleFileSelect}
+            style={{ display: "none" }}
+          />
         </div>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".pdf"
-          multiple
-          style={{ display: "none" }}
-          onChange={(e) => handleFileUpload(e.target.files)}
-        />
-      </div>
 
-      <div className="sidebar-section">
-        <h3>Documents</h3>
-        <div className="document-list">
-          {documents.map((doc, index) => (
-            <div key={index} className="document-item">
-              <div className="doc-icon">
-                <i className={`fas ${getDocIcon(doc.type)}`}></i>
-              </div>
-              <div className="doc-info">
-                <div className="doc-name">{doc.name}</div>
-                <div className="doc-status">
-                  {doc.processed ? "Processed" : "Processing..."}
+        {/* Selected Files */}
+        {selectedFiles.length > 0 && (
+          <div className="selected-files">
+            <h4>Selected Files ({selectedFiles.length})</h4>
+            <div className="file-list">
+              {selectedFiles.map((file, index) => (
+                <div key={index} className="file-item">
+                  <div className="file-info">
+                    <i className="fas fa-file-pdf"></i>
+                    <span className="file-name">{file.name}</span>
+                  </div>
+                  <button
+                    className="remove-btn"
+                    onClick={() => removeSelectedFile(index)}
+                    title="Remove file"
+                    style={{
+                      background: "#ff4757",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "50%",
+                      width: "20px",
+                      height: "20px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                      fontSize: "12px",
+                      transition: "all 0.2s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "#ff3742";
+                      e.currentTarget.style.transform = "scale(1.1)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "#ff4757";
+                      e.currentTarget.style.transform = "scale(1)";
+                    }}
+                  >
+                    ×
+                  </button>
                 </div>
-              </div>
-              <button
-                className="doc-remove"
-                onClick={() => onRemoveDocument(index)}
-              >
-                <i className="fas fa-times"></i>
-              </button>
+              ))}
             </div>
-          ))}
-        </div>
+            <button
+              className="btn btn--primary btn--sm"
+              onClick={handleProcessFiles}
+              disabled={isUploading || selectedFiles.length === 0}
+              style={{ marginTop: "10px", width: "100%" }}
+            >
+              {isUploading
+                ? "Processing..."
+                : `Process ${selectedFiles.length} PDF${
+                    selectedFiles.length > 1 ? "s" : ""
+                  }`}
+            </button>
+          </div>
+        )}
       </div>
 
+      {/* Summary */}
       <div className="sidebar-section">
-        <h3>Medical Expenses</h3>
-        <div className="expense-summary">
-          <div className="expense-total">
-            Total: $
-            {totalExpenses.toLocaleString("en-US", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
+        <h3>Summary</h3>
+        <div className="card">
+          <div className="card__body">
+            <p>
+              <strong>Total Medical Expenses:</strong> $
+              {totalExpenses.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </p>
+            <p>
+              <strong>Number of Exhibits:</strong> {exhibits.length}
+            </p>
           </div>
-        </div>
-        <div className="expense-breakdown">
-          {medicalBills.map((bill, index) => (
-            <div key={index} className="expense-item">
-              <div className="expense-provider">{bill.provider}</div>
-              <div className="expense-amount">
-                $
-                {bill.amount.toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </div>
-            </div>
-          ))}
         </div>
       </div>
     </aside>
