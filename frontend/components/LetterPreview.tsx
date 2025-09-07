@@ -113,23 +113,7 @@ const LetterPreview: React.FC<LetterPreviewProps> = ({
             }`}
             data-section="addressee"
             onClick={() => onSectionClick?.("addressee")}
-          >
-            <div className="addressee-line">
-              {letterData.insuranceCompany.name || "[Insurance Company Name]"}
-            </div>
-            <div className="addressee-line">
-              {letterData.insuranceCompany.address
-                ? letterData.insuranceCompany.address
-                    .split("\n")
-                    .map((line, i) => <div key={i}>{line}</div>)
-                : "[Insurance Company Address]"}
-            </div>
-            <div className="addressee-line">
-              Attention:{" "}
-              {letterData.insuranceCompany.attention ||
-                "[Claims Representative]"}
-            </div>
-          </div>
+          ></div>
           <div className="re-line">
             Re: <strong>POLICY LIMIT DEMAND</strong>
             <br />
