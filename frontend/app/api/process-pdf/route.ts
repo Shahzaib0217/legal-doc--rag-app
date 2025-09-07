@@ -4,6 +4,35 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const apiKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey || "");
 
+// Helper function for API retry logic
+const retryApiCall = async (
+  apiCall: () => Promise<any>,
+  maxRetries = 3,
+  delay = 2000
+) => {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await apiCall();
+    } catch (error: any) {
+      console.log(
+        `API call failed (attempt ${attempt}/${maxRetries}):`,
+        error.message
+      );
+
+      if (attempt === maxRetries) {
+        throw error; // Final attempt failed, throw the error
+      }
+
+      // Wait before retrying
+      console.log(`Retrying in ${delay}ms...`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+
+      // Increase delay for next retry (exponential backoff)
+      delay *= 1.5;
+    }
+  }
+};
+
 export async function POST(request: NextRequest) {
   try {
     if (!apiKey) {
@@ -55,15 +84,19 @@ export async function POST(request: NextRequest) {
         `;
 
         console.log(`Sending ${file.name} to Gemini...`);
-        const res = await model.generateContent([
-          {
-            inlineData: {
-              mimeType: file.type || "application/pdf",
-              data: base64,
+
+        // Retry logic for individual file processing
+        const res = await retryApiCall(async () => {
+          return await model.generateContent([
+            {
+              inlineData: {
+                mimeType: file.type || "application/pdf",
+                data: base64,
+              },
             },
-          },
-          prompt,
-        ]);
+            prompt,
+          ]);
+        });
 
         const cleanText = res.response.text().replace(/```json|```/g, "");
         const data = JSON.parse(cleanText);
@@ -124,7 +157,12 @@ export async function POST(request: NextRequest) {
       ${combinedSummaries}
     `;
 
-    const globalRes = await model.generateContent(globalPrompt);
+    // Retry logic for global analysis
+    console.log("Generating global analysis with retry logic...");
+    const globalRes = await retryApiCall(async () => {
+      return await model.generateContent(globalPrompt);
+    });
+
     const cleanGlobal = globalRes.response.text().replace(/```json|```/g, "");
     const globalData = JSON.parse(cleanGlobal);
 
