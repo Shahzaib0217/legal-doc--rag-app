@@ -25,8 +25,13 @@ export async function POST(request: NextRequest) {
 
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    // Step 1: Analyze each PDF in parallel
-    const tasks = files.map(async (file) => {
+    // Step 1: Analyze each PDF sequentially (one by one)
+    const exhibits = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      console.log(`Processing file ${i + 1}/${files.length}: ${file.name}`);
+
       try {
         const buffer = await file.arrayBuffer();
         const base64 = Buffer.from(buffer).toString("base64");
@@ -49,6 +54,7 @@ export async function POST(request: NextRequest) {
           - Prognosis or ongoing treatment needs
         `;
 
+        console.log(`Sending ${file.name} to Gemini...`);
         const res = await model.generateContent([
           {
             inlineData: {
@@ -62,30 +68,33 @@ export async function POST(request: NextRequest) {
         const cleanText = res.response.text().replace(/```json|```/g, "");
         const data = JSON.parse(cleanText);
 
-        return {
+        const exhibit = {
           fileName: file.name,
           heading: data.heading || "Unknown Exhibit",
           summary: data.summary || "No summary available",
           expenses: Number(data.expenses) || 0,
         };
+
+        exhibits.push(exhibit);
+        console.log(`Successfully processed: ${file.name}`);
+
+        // Add small delay between requests to avoid rate limiting
+        if (i < files.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
       } catch (err: any) {
-        return {
+        console.error(`Error processing ${file.name}:`, err.message);
+        const errorExhibit = {
           fileName: file.name,
-          heading: "Error",
-          summary: err.message || "Failed to analyze this file",
+          heading: `Error: ${file.name}`,
+          summary: `Failed to analyze this file: ${err.message}. Please try uploading a different format or check if the file is corrupted.`,
           expenses: 0,
         };
+        exhibits.push(errorExhibit);
       }
-    });
+    }
 
-    const results = await Promise.allSettled(tasks);
-    const exhibits = results.map((res) =>
-      res.status === "fulfilled"
-        ? res.value
-        : { heading: "Error", summary: "Unknown error", expenses: 0 }
-    );
-
-    console.log("Exhibit analyses:", exhibits);
+    console.log("All exhibits processed:", exhibits);
     // Step 2: Combine summaries and re-analyze for global content
     const combinedSummaries = exhibits
       .map((e, i) => `Exhibit ${i + 1}: ${e.heading}\n${e.summary}`)
