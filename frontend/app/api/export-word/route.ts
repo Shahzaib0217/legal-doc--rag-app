@@ -123,32 +123,6 @@ export async function POST(request: NextRequest) {
     const documentSections: (Paragraph | Table)[] = [];
 
     if (pleadingPaper) {
-      // Pleading Paper Header
-      documentSections.push(
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: "SUPERIOR COURT OF CALIFORNIA",
-              bold: true,
-              size: 24,
-            }),
-          ],
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 200 },
-        }),
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: "COUNTY OF [COUNTY NAME]",
-              bold: true,
-              size: 24,
-            }),
-          ],
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 400 },
-        })
-      );
-
       // Create content paragraphs first
       const contentParagraphs: Paragraph[] = [
         new Paragraph({
@@ -197,8 +171,53 @@ export async function POST(request: NextRequest) {
             }),
           ],
           alignment: AlignmentType.CENTER,
-          spacing: { after: 300 },
+          spacing: { after: 200 },
         }),
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `Client: ${letterData.caseInfo.client}`,
+              bold: true,
+              size: 18,
+            }),
+          ],
+          spacing: { after: 100 },
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `Date of Loss: ${letterData.caseInfo.dateOfLoss}`,
+              size: 18,
+            }),
+          ],
+          spacing: { after: 100 },
+        }),
+        ...(letterData.caseInfo?.policyNumber
+          ? [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: `Policy Number: ${letterData.caseInfo.policyNumber}`,
+                    size: 18,
+                  }),
+                ],
+                spacing: { after: 100 },
+              }),
+            ]
+          : []),
+        ...(letterData.caseInfo?.claimNumber
+          ? [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: `Claim Number: ${letterData.caseInfo.claimNumber}`,
+                    size: 18,
+                  }),
+                ],
+                spacing: { after: 100 },
+              }),
+            ]
+          : []),
       ];
 
       // Add dynamic sections to content
@@ -250,6 +269,46 @@ export async function POST(request: NextRequest) {
           });
         }
       });
+
+      // Add exhibits section if there are exhibits (for pleading paper)
+      if (exhibits && exhibits.length > 0) {
+        contentParagraphs.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: "EXHIBITS",
+                bold: true,
+                size: 20,
+              }),
+            ],
+            spacing: { before: 300, after: 200 },
+          })
+        );
+
+        exhibits.forEach((exhibit: any) => {
+          contentParagraphs.push(
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: `${exhibit.heading}`,
+                  bold: true,
+                  size: 18,
+                }),
+              ],
+              spacing: { before: 200, after: 100 },
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: exhibit.summary,
+                  size: 18,
+                }),
+              ],
+              spacing: { after: 200 },
+            })
+          );
+        });
+      }
 
       // Add closing to content
       contentParagraphs.push(
@@ -404,8 +463,34 @@ export async function POST(request: NextRequest) {
               size: 20,
             }),
           ],
-          spacing: { after: 300 },
+          spacing: { after: 100 },
         }),
+        ...(letterData.caseInfo?.policyNumber
+          ? [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: `Policy Number: ${letterData.caseInfo.policyNumber}`,
+                    size: 20,
+                  }),
+                ],
+                spacing: { after: 100 },
+              }),
+            ]
+          : []),
+        ...(letterData.caseInfo?.claimNumber
+          ? [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: `Claim Number: ${letterData.caseInfo.claimNumber}`,
+                    size: 20,
+                  }),
+                ],
+                spacing: { after: 100 },
+              }),
+            ]
+          : []),
         new Paragraph({
           children: [
             new TextRun({
@@ -415,7 +500,7 @@ export async function POST(request: NextRequest) {
             }),
           ],
           alignment: AlignmentType.CENTER,
-          spacing: { after: 300 },
+          spacing: { before: 100, after: 300 },
         })
       );
 
