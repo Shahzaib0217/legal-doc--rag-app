@@ -15,6 +15,7 @@ export default function Home() {
   const [exhibits, setExhibits] = useState<Exhibit[]>([]);
   const [apiData, setApiData] = useState<ApiResponse | null>(null);
   const [selectedSection, setSelectedSection] = useState<string>("");
+  const [pleadingPaper, setPleadingPaper] = useState<boolean>(false);
 
   useEffect(() => {
     // Initialize with empty data
@@ -49,6 +50,16 @@ export default function Home() {
       ...prev,
       apiData: response,
       totalMedicalExpenses: response.totalExpenses,
+      // Auto-populate case info with extracted client information
+      caseInfo: {
+        ...prev.caseInfo,
+        client: response.clientInfo?.clientName || prev.caseInfo.client,
+        policyNumber:
+          response.clientInfo?.policyNumber || prev.caseInfo.policyNumber,
+        claimNumber:
+          response.clientInfo?.claimNumber || prev.caseInfo.claimNumber,
+        dateOfLoss: response.clientInfo?.dateOfLoss || prev.caseInfo.dateOfLoss,
+      },
       suggestedContent: {
         natureOfClaim: response.globalAnalysis.natureOfClaim,
         facts: response.globalAnalysis.facts,
@@ -67,6 +78,8 @@ export default function Home() {
     <>
       <Header
         onExport={() => window.print()}
+        pleadingPaper={pleadingPaper}
+        onPleadingPaperChange={setPleadingPaper}
         onSave={async () => {
           try {
             const response = await fetch("/api/export-word", {
@@ -77,6 +90,7 @@ export default function Home() {
               body: JSON.stringify({
                 letterData,
                 exhibits,
+                pleadingPaper,
               }),
             });
 
@@ -85,7 +99,9 @@ export default function Home() {
               const url = window.URL.createObjectURL(blob);
               const a = document.createElement("a");
               a.href = url;
-              a.download = `demand-letter-${letterData.caseInfo.client.replace(
+              a.download = `${
+                pleadingPaper ? "pleading-" : ""
+              }demand-letter-${letterData.caseInfo.client.replace(
                 /\s+/g,
                 "-"
               )}-${new Date().toISOString().split("T")[0]}.docx`;

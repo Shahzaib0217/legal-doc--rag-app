@@ -23,6 +23,27 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
+  // Helper function to check for duplicates
+  const checkForDuplicates = (newFiles: File[]) => {
+    const existingFileNames = new Set([
+      ...selectedFiles.map((f) => f.name),
+      ...exhibits.map((e) => e.fileName),
+    ]);
+
+    const duplicateFiles: string[] = [];
+    const uniqueFiles: File[] = [];
+
+    newFiles.forEach((file) => {
+      if (existingFileNames.has(file.name)) {
+        duplicateFiles.push(file.name);
+      } else {
+        uniqueFiles.push(file);
+      }
+    });
+
+    return { duplicateFiles, uniqueFiles };
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
@@ -35,7 +56,16 @@ const Sidebar: React.FC<SidebarProps> = ({
         return;
       }
 
-      setSelectedFiles((prev) => [...prev, ...pdfFiles]);
+      const { duplicateFiles, uniqueFiles } = checkForDuplicates(pdfFiles);
+
+      if (duplicateFiles.length > 0) {
+        const duplicateNames = duplicateFiles.join(", ");
+        alert(`Duplicate files not added: ${duplicateNames}`);
+      }
+
+      if (uniqueFiles.length > 0) {
+        setSelectedFiles((prev) => [...prev, ...uniqueFiles]);
+      }
     }
     // Reset input
     if (fileInputRef.current) {
@@ -56,7 +86,16 @@ const Sidebar: React.FC<SidebarProps> = ({
         return;
       }
 
-      setSelectedFiles((prev) => [...prev, ...pdfFiles]);
+      const { duplicateFiles, uniqueFiles } = checkForDuplicates(pdfFiles);
+
+      if (duplicateFiles.length > 0) {
+        const duplicateNames = duplicateFiles.join(", ");
+        alert(`Duplicate files not added: ${duplicateNames}`);
+      }
+
+      if (uniqueFiles.length > 0) {
+        setSelectedFiles((prev) => [...prev, ...uniqueFiles]);
+      }
     }
   };
 
@@ -65,14 +104,38 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const handleProcessFiles = async () => {
-    if (selectedFiles.length === 0) return;
+    // Check if we have new files to process or need to reprocess existing
+    const hasNewFiles = selectedFiles.length > 0;
+    const hasExistingFiles = exhibits.length > 0;
+
+    if (!hasNewFiles && !hasExistingFiles) return;
 
     setIsUploading(true);
     try {
       const formData = new FormData();
-      selectedFiles.forEach((file) => {
-        formData.append("pdfs", file);
-      });
+
+      // Add new files if any
+      if (hasNewFiles) {
+        selectedFiles.forEach((file) => {
+          formData.append("pdfs", file);
+        });
+      }
+
+      // Include existing exhibits for incremental processing or reprocessing
+      if (hasExistingFiles) {
+        formData.append("existingExhibits", JSON.stringify(exhibits));
+      }
+
+      // Include list of files to keep (all current exhibits)
+      if (hasExistingFiles) {
+        const keepFiles = exhibits.map((exhibit) => exhibit.fileName);
+        formData.append("keepFiles", JSON.stringify(keepFiles));
+      }
+
+      // If no new files, this is a reprocessing request
+      if (!hasNewFiles && hasExistingFiles) {
+        formData.append("reprocessAll", "true");
+      }
 
       const response = await fetch("/api/process-pdf", {
         method: "POST",
@@ -83,7 +146,22 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       if (result.success) {
         onApiResponse(result);
-        setSelectedFiles([]); // Clear selected files after successful processing
+        if (hasNewFiles) {
+          setSelectedFiles([]); // Clear selected files after successful processing
+        }
+
+        // Show processing info to user
+        if (result.processingInfo) {
+          const {
+            totalExhibits,
+            existingExhibits,
+            newExhibits,
+            errorExhibits,
+          } = result.processingInfo;
+          console.log(
+            `Processing complete: ${totalExhibits} total (${existingExhibits} existing + ${newExhibits} new, ${errorExhibits} errors)`
+          );
+        }
       } else {
         alert("Error processing PDFs: " + result.error);
       }
@@ -97,6 +175,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const removeExhibit = (index: number) => {
     const updatedExhibits = exhibits.filter((_, i) => i !== index);
+
     // Update total expenses
     const newTotal = updatedExhibits.reduce(
       (sum, exhibit) => sum + exhibit.expenses,
@@ -110,21 +189,49 @@ const Sidebar: React.FC<SidebarProps> = ({
 
     onUpdateLetterData(updatedLetterData);
 
-    // Create new API response with updated exhibits
-    const updatedApiResponse: ApiResponse = {
-      success: true,
-      exhibits: updatedExhibits,
-      totalExpenses: newTotal,
-      globalAnalysis: letterData.apiData?.globalAnalysis || {
-        natureOfClaim: "",
-        liability: "",
-        injuries: [],
-        damages: "",
-        facts: "",
-      },
-    };
-
-    onApiResponse(updatedApiResponse);
+    // Create updated API response without reprocessing
+    if (updatedExhibits.length > 0) {
+      const updatedApiResponse = {
+        success: true,
+        exhibits: updatedExhibits,
+        totalExpenses: newTotal,
+        globalAnalysis: letterData.apiData?.globalAnalysis || {
+          natureOfClaim: "",
+          liability: "",
+          injuries: [],
+          damages: "",
+          facts: "",
+        },
+        clientInfo: letterData.apiData?.clientInfo || {
+          clientName: null,
+          policyNumber: null,
+          claimNumber: null,
+          dateOfLoss: null,
+        },
+      };
+      onApiResponse(updatedApiResponse);
+    } else {
+      // No exhibits left, create empty response
+      const emptyResponse = {
+        success: true,
+        exhibits: [],
+        totalExpenses: 0,
+        globalAnalysis: {
+          natureOfClaim: "",
+          liability: "",
+          injuries: [],
+          damages: "",
+          facts: "",
+        },
+        clientInfo: {
+          clientName: null,
+          policyNumber: null,
+          claimNumber: null,
+          dateOfLoss: null,
+        },
+      };
+      onApiResponse(emptyResponse);
+    }
   };
 
   const totalExpenses = exhibits.reduce(
@@ -190,6 +297,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         >
           <i className="fas fa-cloud-upload-alt"></i>
           <p>Drop PDF files here or click to select</p>
+          <div className="upload-subtext">Supported formats: PDF only</div>
           <input
             ref={fileInputRef}
             type="file"
@@ -200,61 +308,103 @@ const Sidebar: React.FC<SidebarProps> = ({
           />
         </div>
 
-        {/* Selected Files */}
-        {selectedFiles.length > 0 && (
-          <div className="selected-files">
-            <h4>Selected Files ({selectedFiles.length})</h4>
-            <div className="file-list">
-              {selectedFiles.map((file, index) => (
-                <div key={index} className="file-item">
-                  <div className="file-info">
-                    <i className="fas fa-file-pdf"></i>
-                    <span className="file-name">{file.name}</span>
-                  </div>
-                  <button
-                    className="remove-btn"
-                    onClick={() => removeSelectedFile(index)}
-                    title="Remove file"
-                    style={{
-                      background: "#ff4757",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "50%",
-                      width: "20px",
-                      height: "20px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      cursor: "pointer",
-                      fontSize: "12px",
-                      transition: "all 0.2s ease",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "#ff3742";
-                      e.currentTarget.style.transform = "scale(1.1)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "#ff4757";
-                      e.currentTarget.style.transform = "scale(1)";
-                    }}
-                  >
-                    ×
-                  </button>
+        {/* All Files - Selected + Processed */}
+        {(selectedFiles.length > 0 || exhibits.length > 0) && (
+          <div className="files-section">
+            <h4>Files ({selectedFiles.length + exhibits.length})</h4>
+
+            {/* Selected Files (New) */}
+            {selectedFiles.length > 0 && (
+              <div className="file-group">
+                <h5 className="file-group-title">
+                  <i className="fas fa-clock" style={{ color: "#f39c12" }}></i>
+                  Ready to Process ({selectedFiles.length})
+                </h5>
+                <div className="file-list">
+                  {selectedFiles.map((file, index) => (
+                    <div
+                      key={`new-${index}`}
+                      className="file-item file-item--new"
+                    >
+                      <div className="file-info">
+                        <i
+                          className="fas fa-file-pdf"
+                          style={{ color: "#e74c3c" }}
+                        ></i>
+                        <span className="file-name" title={file.name}>
+                          {file.name}
+                        </span>
+                      </div>
+                      <button
+                        className="remove-btn"
+                        onClick={() => removeSelectedFile(index)}
+                        title="Remove file"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <button
-              className="btn btn--primary btn--sm"
-              onClick={handleProcessFiles}
-              disabled={isUploading || selectedFiles.length === 0}
-              style={{ marginTop: "10px", width: "100%" }}
-            >
-              {isUploading
-                ? "Processing..."
-                : `Process ${selectedFiles.length} PDF${
-                    selectedFiles.length > 1 ? "s" : ""
-                  }`}
-            </button>
+              </div>
+            )}
+
+            {/* Processed Files */}
+            {exhibits.length > 0 && (
+              <div className="file-group">
+                <h5 className="file-group-title">
+                  <i
+                    className="fas fa-check-circle"
+                    style={{ color: "#27ae60" }}
+                  ></i>
+                  Processed ({exhibits.length})
+                </h5>
+                <div className="file-list">
+                  {exhibits.map((exhibit, index) => (
+                    <div
+                      key={`processed-${index}`}
+                      className="file-item file-item--processed"
+                    >
+                      <div className="file-info">
+                        <i
+                          className="fas fa-file-pdf"
+                          style={{ color: "#27ae60" }}
+                        ></i>
+                        <span className="file-name" title={exhibit.fileName}>
+                          {exhibit.fileName}
+                        </span>
+                      </div>
+                      <button
+                        className="remove-btn"
+                        onClick={() => removeExhibit(index)}
+                        disabled={isUploading}
+                        title="Remove file"
+                      >
+                        {isUploading ? "..." : "×"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Process/Reprocess Button */}
+            {(selectedFiles.length > 0 ||
+              (exhibits.length > 0 && selectedFiles.length === 0)) && (
+              <button
+                className="btn btn--primary"
+                onClick={handleProcessFiles}
+                disabled={isUploading}
+                style={{ marginTop: "15px", width: "100%" }}
+              >
+                {isUploading
+                  ? "Processing..."
+                  : selectedFiles.length > 0
+                  ? `Process ${selectedFiles.length} New File${
+                      selectedFiles.length > 1 ? "s" : ""
+                    }`
+                  : `Reprocess All Files (${exhibits.length})`}
+              </button>
+            )}
           </div>
         )}
       </div>

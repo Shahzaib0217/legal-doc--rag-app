@@ -20,6 +20,13 @@ export interface CaseInfo {
   dateOfLoss: string;
 }
 
+export interface ClientInfo {
+  clientName: string | null;
+  policyNumber: string | null;
+  claimNumber: string | null;
+  dateOfLoss: string | null;
+}
+
 export interface MedicalBill {
   provider: string;
   dateOfService: string;
@@ -51,6 +58,10 @@ export interface Exhibit {
   heading: string;
   summary: string;
   expenses: number;
+  clientInfo?: ClientInfo | null;
+  processedAt?: string;
+  fileHash?: string;
+  isError?: boolean;
 }
 
 export interface GlobalAnalysis {
@@ -59,6 +70,7 @@ export interface GlobalAnalysis {
   injuries: string[];
   damages: string;
   facts: string;
+  clientInfo?: ClientInfo;
 }
 
 export interface ApiResponse {
@@ -66,6 +78,14 @@ export interface ApiResponse {
   exhibits: Exhibit[];
   totalExpenses: number;
   globalAnalysis: GlobalAnalysis;
+  clientInfo?: ClientInfo;
+  processingInfo?: {
+    totalExhibits: number;
+    existingExhibits: number;
+    newExhibits: number;
+    errorExhibits: number;
+    processedAt: string;
+  };
 }
 
 export interface Document {

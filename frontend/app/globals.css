@@ -812,34 +812,74 @@ select.form-control {
   text-align: center;
   cursor: pointer;
   transition: all var(--duration-normal) var(--ease-standard);
-  background: var(--color-bg-1);
+  background: var(--color-surface);
+  position: relative;
+  overflow: hidden;
+}
+
+.upload-area::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, var(--color-bg-1), var(--color-bg-2));
+  opacity: 0.5;
+  transition: opacity var(--duration-normal) var(--ease-standard);
+  z-index: 0;
 }
 
 .upload-area:hover {
   border-color: var(--color-primary);
-  background: var(--color-bg-2);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.upload-area:hover::before {
+  opacity: 0.8;
 }
 
 .upload-area.dragover {
   border-color: var(--color-primary);
   background: var(--color-bg-3);
+  transform: scale(1.02);
+  box-shadow: var(--shadow-lg);
 }
 
-.upload-content i {
+.upload-area.dragover::before {
+  opacity: 1;
+}
+
+.upload-area > * {
+  position: relative;
+  z-index: 1;
+}
+
+.upload-area i {
   font-size: var(--font-size-4xl);
-  color: var(--color-text-secondary);
+  color: var(--color-primary);
   margin-bottom: var(--space-12);
+  display: block;
+  transition: all var(--duration-normal) var(--ease-standard);
 }
 
-.upload-content p {
+.upload-area:hover i {
+  color: var(--color-primary-hover);
+  transform: scale(1.1);
+}
+
+.upload-area p {
   margin: 0 0 var(--space-4) 0;
   color: var(--color-text);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-base);
 }
 
-.upload-subtext {
+.upload-area .upload-subtext {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
+  margin-top: var(--space-8);
 }
 
 /* Selected Files */
@@ -1440,4 +1480,303 @@ select.form-control {
     margin: 0;
     padding: var(--space-16);
   }
+}
+
+/* Pleading Paper Checkbox Styles */
+.pleading-checkbox {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  gap: 0.5rem;
+  margin-right: 1rem;
+}
+
+.pleading-checkbox input[type="checkbox"] {
+  display: none;
+}
+
+.checkmark {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--color-gray-300);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.pleading-checkbox input[type="checkbox"]:checked + .checkmark {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.pleading-checkbox input[type="checkbox"]:checked + .checkmark::after {
+  content: "✓";
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.pleading-checkbox:hover .checkmark {
+  border-color: var(--color-primary);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Smart Caching Exhibit Styles */
+.exhibit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.exhibit-item {
+  padding: 0.875rem;
+  border: 1px solid var(--color-gray-300);
+  border-radius: 8px;
+  background: var(--color-surface);
+  transition: all 0.2s ease;
+}
+
+.exhibit-item:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.exhibit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.exhibit-name {
+  font-weight: 600;
+  color: var(--color-text);
+  font-size: 0.875rem;
+}
+
+.exhibit-summary {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+  margin-bottom: 0.5rem;
+}
+
+.exhibit-expense {
+  font-weight: 600;
+  color: var(--color-primary);
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
+.exhibit-timestamp {
+  font-size: 0.75rem;
+  color: var(--color-gray-400);
+  font-style: italic;
+}
+
+.remove-btn:hover {
+  transform: scale(1.1) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Selected Files Styling */
+.selected-files {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--color-gray-300);
+  border-radius: 8px;
+  background: var(--color-bg-1);
+}
+
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid var(--color-gray-200);
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.file-info i {
+  color: var(--color-red-500);
+}
+
+.file-name {
+  font-size: 0.875rem;
+  color: var(--color-text);
+}
+
+/* Files Section Styling */
+.files-section {
+  margin-top: var(--space-20);
+  padding: var(--space-16);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-card-border);
+}
+
+.files-section h4 {
+  margin: 0 0 var(--space-16) 0;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.file-group {
+  margin-bottom: var(--space-20);
+}
+
+.file-group:last-child {
+  margin-bottom: 0;
+}
+
+.file-group-title {
+  margin: 0 0 var(--space-12) 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-12);
+  background: var(--color-bg-1);
+  border-radius: var(--radius-base);
+  border: 1px solid var(--color-card-border-inner);
+  transition: all var(--duration-fast) var(--ease-standard);
+  min-height: 48px;
+  gap: var(--space-8);
+}
+
+.file-item:hover {
+  background: var(--color-bg-2);
+  border-color: var(--color-primary);
+  transform: translateX(4px);
+}
+
+.file-item--new {
+  border-left: 3px solid var(--color-warning);
+}
+
+.file-item--processed {
+  border-left: 3px solid var(--color-success);
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  flex: 1;
+  min-width: 0;
+}
+
+.file-info i {
+  font-size: var(--font-size-base);
+  flex-shrink: 0;
+}
+
+.file-name {
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  font-weight: var(--font-weight-medium);
+  flex: 1;
+  min-width: 0;
+  line-height: 1.4;
+}
+
+.file-status {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-2);
+  padding: var(--space-2) var(--space-8);
+  border-radius: var(--radius-full);
+  font-weight: var(--font-weight-medium);
+  flex-shrink: 0;
+  white-space: nowrap;
+  margin-left: var(--space-8);
+}
+
+.file-item--new .file-status {
+  background: rgba(var(--color-warning-rgb), 0.1);
+  color: var(--color-warning);
+}
+
+.file-item--processed .file-status {
+  background: rgba(var(--color-success-rgb), 0.1);
+  color: var(--color-success);
+  font-weight: var(--font-weight-semibold);
+}
+
+.remove-btn {
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: var(--color-error);
+  color: white;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--duration-fast) var(--ease-standard);
+  flex-shrink: 0;
+  margin-left: var(--space-8);
+}
+
+.remove-btn:hover {
+  background: var(--color-red-400);
+  transform: scale(1.1);
+}
+
+.remove-btn:active {
+  transform: scale(0.95);
+}
+
+.remove-btn:disabled {
+  background: var(--color-text-secondary);
+  cursor: not-allowed;
+  opacity: 0.5;
+  transform: none;
 }
