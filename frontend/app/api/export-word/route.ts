@@ -7,11 +7,6 @@ import {
   HeadingLevel,
   AlignmentType,
   BorderStyle,
-  Table,
-  TableRow,
-  TableCell,
-  WidthType,
-  VerticalAlign,
 } from "docx";
 
 // TypeScript interfaces for better type safety
@@ -41,27 +36,33 @@ const SPACING = {
   XLARGE: 300,
 } as const;
 
-const COLUMN_WIDTHS = {
-  LINE_NUMBER: 8,
-  CONTENT: 92,
-} as const;
-
-const LINE_LENGTH_LIMIT = 80;
+const LINE_LENGTH_LIMIT = 58; // Exact width for pleading paper content
 
 // Common border configurations
 const BORDERS = {
-  NONE: { style: BorderStyle.NONE },
-  LINE_NUMBER_RIGHT: {
-    top: { style: BorderStyle.NONE },
-    bottom: { style: BorderStyle.NONE },
-    left: { style: BorderStyle.NONE },
-    right: { style: BorderStyle.SINGLE, size: 1 },
-  },
-  CONTENT_CELL: {
+  NONE: {
     top: { style: BorderStyle.NONE },
     bottom: { style: BorderStyle.NONE },
     left: { style: BorderStyle.NONE },
     right: { style: BorderStyle.NONE },
+  },
+  LINE_NUMBER_CELL: {
+    top: { style: BorderStyle.NONE },
+    bottom: { style: BorderStyle.NONE },
+    left: { style: BorderStyle.NONE },
+    right: { style: BorderStyle.NONE },
+  },
+  CONTENT_CELL_LEFT_MARGIN: {
+    top: { style: BorderStyle.NONE },
+    bottom: { style: BorderStyle.NONE },
+    left: { style: BorderStyle.SINGLE, size: 4 }, // Left margin line - thicker
+    right: { style: BorderStyle.NONE },
+  },
+  CONTENT_CELL_RIGHT_MARGIN: {
+    top: { style: BorderStyle.NONE },
+    bottom: { style: BorderStyle.NONE },
+    left: { style: BorderStyle.NONE },
+    right: { style: BorderStyle.SINGLE, size: 4 }, // Right margin line - thicker
   },
 } as const;
 
@@ -101,66 +102,6 @@ const wrapTextToLines = (
   return lines;
 };
 
-const createLineNumberCell = (lineNumber: number): TableCell => {
-  return new TableCell({
-    children: [
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: lineNumber.toString(),
-            size: FONT_SIZES.SMALL,
-          }),
-        ],
-        alignment: AlignmentType.RIGHT,
-      }),
-    ],
-    width: {
-      size: COLUMN_WIDTHS.LINE_NUMBER,
-      type: WidthType.PERCENTAGE,
-    },
-    verticalAlign: VerticalAlign.TOP,
-    borders: BORDERS.LINE_NUMBER_RIGHT,
-  });
-};
-
-const createContentCell = (text: string): TableCell => {
-  return new TableCell({
-    children: [
-      new Paragraph({
-        children: [
-          new TextRun({
-            text,
-            size: FONT_SIZES.REGULAR,
-          }),
-        ],
-      }),
-    ],
-    width: {
-      size: COLUMN_WIDTHS.CONTENT,
-      type: WidthType.PERCENTAGE,
-    },
-    verticalAlign: VerticalAlign.TOP,
-    borders: BORDERS.CONTENT_CELL,
-  });
-};
-
-const createPleadingTable = (lineNumber: number, content: string): Table => {
-  return new Table({
-    rows: [
-      new TableRow({
-        children: [
-          createLineNumberCell(lineNumber),
-          createContentCell(content),
-        ],
-      }),
-    ],
-    width: {
-      size: 100,
-      type: WidthType.PERCENTAGE,
-    },
-  });
-};
-
 export async function POST(request: NextRequest) {
   try {
     const {
@@ -189,26 +130,65 @@ export async function POST(request: NextRequest) {
       return sections;
     };
 
-    // Optimized pleading paper content creation
-    const createPleadingContent = (textLines: string[]): Table[] => {
-      const tables: Table[] = [];
+    // Improved pleading paper formatting with better text handling
+    const createPleadingContent = (textLines: string[]): Paragraph[] => {
+      const paragraphs: Paragraph[] = [];
       let lineNumber = 1;
+      const CONTENT_WIDTH = 58; // Fixed content width
 
       textLines.forEach((line) => {
         if (line.trim()) {
-          const wrappedLines = wrapTextToLines(line);
+          const wrappedLines = wrapTextToLines(line.trim(), CONTENT_WIDTH);
           wrappedLines.forEach((wrappedLine) => {
-            tables.push(createPleadingTable(lineNumber, wrappedLine));
+            // Line numbers closer to pipe - reduced spacing
+            const lineNumStr = lineNumber.toString();
+            // Use exactly 5 characters for line number + minimal spacing before pipe
+            const linePrefix = `${lineNumStr.padStart(3, " ")}  `; // 3 for number + 2 spaces = 5 total
+
+            const trimmedLine = wrappedLine.trim();
+            const paddedContent = trimmedLine.padEnd(CONTENT_WIDTH, " ");
+            const lineText = `${linePrefix}|  ${paddedContent}  |`;
+
+            const paragraph = new Paragraph({
+              children: [
+                new TextRun({
+                  text: lineText,
+                  size: FONT_SIZES.REGULAR,
+                  font: "Courier New", // Monospace for perfect alignment
+                }),
+              ],
+              spacing: { after: 0, before: 0 },
+              alignment: AlignmentType.CENTER, // Center the entire pleading content
+            });
+            paragraphs.push(paragraph);
             lineNumber++;
           });
         } else {
-          // Empty line
-          tables.push(createPleadingTable(lineNumber, ""));
+          // Empty line numbers closer to pipe - reduced spacing
+          const lineNumStr = lineNumber.toString();
+          // Use exactly 5 characters for line number + minimal spacing before pipe
+          const linePrefix = `${lineNumStr.padStart(3, " ")}  `; // 3 for number + 2 spaces = 5 total
+
+          const emptyContent = " ".repeat(CONTENT_WIDTH);
+          const emptyLineText = `${linePrefix}|  ${emptyContent}  |`;
+
+          const emptyParagraph = new Paragraph({
+            children: [
+              new TextRun({
+                text: emptyLineText,
+                size: FONT_SIZES.REGULAR,
+                font: "Courier New",
+              }),
+            ],
+            spacing: { after: 0, before: 0 },
+            alignment: AlignmentType.CENTER, // Center the entire pleading content
+          });
+          paragraphs.push(emptyParagraph);
           lineNumber++;
         }
       });
 
-      return tables;
+      return paragraphs;
     };
 
     // Helper functions for creating common paragraph types
@@ -364,8 +344,8 @@ export async function POST(request: NextRequest) {
     };
 
     // Helper to build regular format document sections
-    const buildRegularFormatSections = (): (Paragraph | Table)[] => {
-      const sections: (Paragraph | Table)[] = [];
+    const buildRegularFormatSections = (): Paragraph[] => {
+      const sections: Paragraph[] = [];
 
       // Header section
       const headerParagraphs = [
@@ -525,13 +505,13 @@ export async function POST(request: NextRequest) {
     };
 
     // Create document sections
-    const documentSections: (Paragraph | Table)[] = [];
+    const documentSections: Paragraph[] = [];
 
     if (pleadingPaper) {
-      // Use optimized content builder and converter
+      // Use optimized content builder and converter (paragraph-based)
       const contentLines = buildPleadingContentLines();
-      const pleadingTables = createPleadingContent(contentLines);
-      documentSections.push(...pleadingTables);
+      const pleadingParagraphs = createPleadingContent(contentLines);
+      documentSections.push(...pleadingParagraphs);
     } else {
       // Regular format (existing code)
       documentSections.push(
