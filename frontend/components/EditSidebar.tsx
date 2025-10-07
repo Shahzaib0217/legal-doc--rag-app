@@ -65,6 +65,13 @@ const EditSidebar: React.FC<EditSidebarProps> = ({
   };
 
   const sections = [
+    // Attorney sections
+    { value: "attorney-name", label: "Attorney Name" },
+    { value: "attorney-title", label: "Attorney Title" },
+    { value: "attorney-specialization", label: "Attorney Specialization" },
+    { value: "attorney-address", label: "Attorney Address" },
+    { value: "attorney-contact", label: "Attorney Contact (Phone & Fax)" },
+
     // Dynamic sections from analysis data
     ...buildDynamicSections(),
 
@@ -78,6 +85,23 @@ const EditSidebar: React.FC<EditSidebarProps> = ({
   const loadSectionContent = (section: string) => {
     // Load current content based on section, prefer suggested content if available
     let content = "";
+
+    // Handle attorney sections
+    if (section === "attorney-name") {
+      return letterData.attorney.name || "";
+    }
+    if (section === "attorney-title") {
+      return letterData.attorney.title || "";
+    }
+    if (section === "attorney-specialization") {
+      return letterData.attorney.specialization || "";
+    }
+    if (section === "attorney-address") {
+      return letterData.attorney.address || "";
+    }
+    if (section === "attorney-contact") {
+      return `Phone: ${letterData.attorney.phone || ""}\nFax: ${letterData.attorney.fax || ""}`;
+    }
 
     // Handle exhibit sections
     if (section.startsWith("exhibit-")) {
@@ -156,6 +180,61 @@ const EditSidebar: React.FC<EditSidebarProps> = ({
 
   const updateSection = () => {
     if (!selectedSection) return;
+
+    // Handle attorney sections
+    if (selectedSection === "attorney-name") {
+      const updatedLetterData = {
+        ...letterData,
+        attorney: { ...letterData.attorney, name: editContent },
+      };
+      onUpdateLetterData(updatedLetterData);
+      return;
+    }
+    if (selectedSection === "attorney-title") {
+      const updatedLetterData = {
+        ...letterData,
+        attorney: { ...letterData.attorney, title: editContent },
+      };
+      onUpdateLetterData(updatedLetterData);
+      return;
+    }
+    if (selectedSection === "attorney-specialization") {
+      const updatedLetterData = {
+        ...letterData,
+        attorney: { ...letterData.attorney, specialization: editContent },
+      };
+      onUpdateLetterData(updatedLetterData);
+      return;
+    }
+    if (selectedSection === "attorney-address") {
+      const updatedLetterData = {
+        ...letterData,
+        attorney: { ...letterData.attorney, address: editContent },
+      };
+      onUpdateLetterData(updatedLetterData);
+      return;
+    }
+    if (selectedSection === "attorney-contact") {
+      // Parse phone and fax from content
+      const lines = editContent.split("\n");
+      const phoneLine = lines.find((line) =>
+        line.toLowerCase().includes("phone")
+      );
+      const faxLine = lines.find((line) => line.toLowerCase().includes("fax"));
+      const phone = phoneLine
+        ? phoneLine.replace(/phone:/i, "").trim()
+        : letterData.attorney.phone;
+      const fax = faxLine
+        ? faxLine.replace(/fax:/i, "").trim()
+        : letterData.attorney.fax;
+
+      const updatedLetterData = {
+        ...letterData,
+        attorney: { ...letterData.attorney, phone, fax },
+      };
+      onUpdateLetterData(updatedLetterData);
+      return;
+    }
 
     // Handle exhibit sections
     if (selectedSection.startsWith("exhibit-")) {

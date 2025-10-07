@@ -281,6 +281,7 @@ export async function POST(request: NextRequest) {
       const headerLines = [
         letterData.attorney.name,
         letterData.attorney.title,
+        letterData.attorney.specialization,
         letterData.attorney.address,
         `Phone: ${letterData.attorney.phone} | Fax: ${letterData.attorney.fax}`,
         "", // Empty line
@@ -354,6 +355,12 @@ export async function POST(request: NextRequest) {
         }),
         createTextParagraph(
           letterData.attorney.title,
+          FONT_SIZES.LARGE,
+          false,
+          { after: SPACING.SMALL }
+        ),
+        createTextParagraph(
+          letterData.attorney.specialization,
           FONT_SIZES.LARGE,
           false,
           { after: SPACING.SMALL }
@@ -530,6 +537,15 @@ export async function POST(request: NextRequest) {
           children: [
             new TextRun({
               text: letterData.attorney.title,
+              size: 20,
+            }),
+          ],
+          spacing: { after: 100 },
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: letterData.attorney.specialization,
               size: 20,
             }),
           ],

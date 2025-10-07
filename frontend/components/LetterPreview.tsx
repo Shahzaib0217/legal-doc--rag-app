@@ -84,23 +84,53 @@ const LetterPreview: React.FC<LetterPreviewProps> = ({
         <div className="letter-content">
           {/* Letter Header */}
           <div className="letter-header">
-            <div className="attorney-name">
+            <div
+              className={`attorney-name editable-section ${
+                selectedSection === "attorney-name" ? "active" : ""
+              }`}
+              data-section="attorney-name"
+              onClick={() => onSectionClick?.("attorney-name")}
+            >
               {letterData.attorney.name || "[Attorney Name]"}
             </div>
-            <div className="attorney-title">
+            <div
+              className={`attorney-title editable-section ${
+                selectedSection === "attorney-title" ? "active" : ""
+              }`}
+              data-section="attorney-title"
+              onClick={() => onSectionClick?.("attorney-title")}
+            >
               {letterData.attorney.title || "[Attorney Title]"}
             </div>
-            <div className="attorney-title">
+            <div
+              className={`attorney-title editable-section ${
+                selectedSection === "attorney-specialization" ? "active" : ""
+              }`}
+              data-section="attorney-specialization"
+              onClick={() => onSectionClick?.("attorney-specialization")}
+            >
               {letterData.attorney.specialization || "[Specialization]"}
             </div>
-            <div className="attorney-contact">
+            <div
+              className={`attorney-contact editable-section ${
+                selectedSection === "attorney-address" ? "active" : ""
+              }`}
+              data-section="attorney-address"
+              onClick={() => onSectionClick?.("attorney-address")}
+            >
               {letterData.attorney.address
                 ? letterData.attorney.address
                     .split("\n")
                     .map((line, i) => <div key={i}>{line}</div>)
                 : "[Attorney Address]"}
             </div>
-            <div className="attorney-contact">
+            <div
+              className={`attorney-contact editable-section ${
+                selectedSection === "attorney-contact" ? "active" : ""
+              }`}
+              data-section="attorney-contact"
+              onClick={() => onSectionClick?.("attorney-contact")}
+            >
               TEL: {letterData.attorney.phone || "[Phone]"} | FAX:{" "}
               {letterData.attorney.fax || "[Fax]"}
             </div>
