@@ -103,6 +103,7 @@ export interface LetterData {
   injuries: string[];
   medicalTreatment: MedicalBill[];
   totalMedicalExpenses: number;
+  openingParagraph?: string;
   // Use the simple API response structure directly
   apiData?: ApiResponse;
   suggestedContent?: {

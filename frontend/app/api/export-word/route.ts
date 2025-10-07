@@ -279,11 +279,11 @@ export async function POST(request: NextRequest) {
 
       // Header information
       const headerLines = [
-        letterData.attorney.name,
-        letterData.attorney.title,
-        letterData.attorney.specialization,
-        letterData.attorney.address,
-        `Phone: ${letterData.attorney.phone} | Fax: ${letterData.attorney.fax}`,
+        letterData.attorney.name || "[Attorney Name]",
+        letterData.attorney.title || "[Attorney Title]",
+        letterData.attorney.specialization || "[Specialization]",
+        letterData.attorney.address || "[Attorney Address]",
+        `TEL: ${letterData.attorney.phone || "[Phone]"} | FAX: ${letterData.attorney.fax || "[Fax]"}`,
         "", // Empty line
         "DEMAND FOR SETTLEMENT",
         "", // Empty line
@@ -301,6 +301,15 @@ export async function POST(request: NextRequest) {
         contentLines.push(`Claim Number: ${letterData.caseInfo.claimNumber}`);
       }
 
+      contentLines.push(""); // Empty line
+
+      // Add opening paragraph
+      contentLines.push("Dear Claims Representative:");
+      contentLines.push("");
+      contentLines.push(
+        letterData.openingParagraph ||
+          `This letter serves as formal notice of our policy limit demand on behalf of our client, ${letterData.caseInfo.client}, arising from the motor vehicle accident that occurred on ${letterData.caseInfo.dateOfLoss}.`
+      );
       contentLines.push(""); // Empty line
 
       // Add dynamic sections
@@ -350,33 +359,57 @@ export async function POST(request: NextRequest) {
 
       // Header section
       const headerParagraphs = [
-        createTextParagraph(letterData.attorney.name, FONT_SIZES.TITLE, true, {
-          after: SPACING.SMALL,
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: letterData.attorney.name || "[Attorney Name]",
+              bold: true,
+              size: FONT_SIZES.TITLE,
+            }),
+          ],
+          alignment: AlignmentType.CENTER,
+          spacing: { after: SPACING.SMALL },
         }),
-        createTextParagraph(
-          letterData.attorney.title,
-          FONT_SIZES.LARGE,
-          false,
-          { after: SPACING.SMALL }
-        ),
-        createTextParagraph(
-          letterData.attorney.specialization,
-          FONT_SIZES.LARGE,
-          false,
-          { after: SPACING.SMALL }
-        ),
-        createTextParagraph(
-          letterData.attorney.address,
-          FONT_SIZES.LARGE,
-          false,
-          { after: SPACING.SMALL }
-        ),
-        createTextParagraph(
-          `Phone: ${letterData.attorney.phone} | Fax: ${letterData.attorney.fax}`,
-          FONT_SIZES.LARGE,
-          false,
-          { after: SPACING.LARGE }
-        ),
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: letterData.attorney.title || "[Attorney Title]",
+              size: FONT_SIZES.LARGE,
+            }),
+          ],
+          alignment: AlignmentType.CENTER,
+          spacing: { after: SPACING.SMALL },
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: letterData.attorney.specialization || "[Specialization]",
+              size: FONT_SIZES.LARGE,
+            }),
+          ],
+          alignment: AlignmentType.CENTER,
+          spacing: { after: SPACING.SMALL },
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: letterData.attorney.address || "[Attorney Address]",
+              size: FONT_SIZES.LARGE,
+            }),
+          ],
+          alignment: AlignmentType.CENTER,
+          spacing: { after: SPACING.SMALL },
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `TEL: ${letterData.attorney.phone || "[Phone]"} | FAX: ${letterData.attorney.fax || "[Fax]"}`,
+              size: FONT_SIZES.LARGE,
+            }),
+          ],
+          alignment: AlignmentType.CENTER,
+          spacing: { after: SPACING.LARGE },
+        }),
         new Paragraph({
           children: [
             new TextRun({
@@ -445,6 +478,20 @@ export async function POST(request: NextRequest) {
       );
 
       sections.push(...headerWithNumbers);
+
+      // Add opening paragraph
+      sections.push(
+        createTextParagraph("Dear Claims Representative:", FONT_SIZES.LARGE, false, {
+          after: SPACING.LARGE,
+        }),
+        createTextParagraph(
+          letterData.openingParagraph ||
+            `This letter serves as formal notice of our policy limit demand on behalf of our client, ${letterData.caseInfo.client}, arising from the motor vehicle accident that occurred on ${letterData.caseInfo.dateOfLoss}.`,
+          FONT_SIZES.LARGE,
+          false,
+          { after: SPACING.XLARGE }
+        )
+      );
 
       // Add dynamic sections
       const dynamicSections = getDynamicSections();
@@ -525,48 +572,52 @@ export async function POST(request: NextRequest) {
         new Paragraph({
           children: [
             new TextRun({
-              text: letterData.attorney.name,
+              text: letterData.attorney.name || "[Attorney Name]",
               bold: true,
               size: 24,
             }),
           ],
-          alignment: AlignmentType.LEFT,
+          alignment: AlignmentType.CENTER,
           spacing: { after: 100 },
         }),
         new Paragraph({
           children: [
             new TextRun({
-              text: letterData.attorney.title,
+              text: letterData.attorney.title || "[Attorney Title]",
               size: 20,
             }),
           ],
+          alignment: AlignmentType.CENTER,
           spacing: { after: 100 },
         }),
         new Paragraph({
           children: [
             new TextRun({
-              text: letterData.attorney.specialization,
+              text: letterData.attorney.specialization || "[Specialization]",
               size: 20,
             }),
           ],
+          alignment: AlignmentType.CENTER,
           spacing: { after: 100 },
         }),
         new Paragraph({
           children: [
             new TextRun({
-              text: letterData.attorney.address,
+              text: letterData.attorney.address || "[Attorney Address]",
               size: 20,
             }),
           ],
+          alignment: AlignmentType.CENTER,
           spacing: { after: 100 },
         }),
         new Paragraph({
           children: [
             new TextRun({
-              text: `Phone: ${letterData.attorney.phone} | Fax: ${letterData.attorney.fax}`,
+              text: `TEL: ${letterData.attorney.phone || "[Phone]"} | FAX: ${letterData.attorney.fax || "[Fax]"}`,
               size: 20,
             }),
           ],
+          alignment: AlignmentType.CENTER,
           spacing: { after: 200 },
         }),
         new Paragraph({
@@ -666,6 +717,26 @@ export async function POST(request: NextRequest) {
           ],
           alignment: AlignmentType.CENTER,
           spacing: { before: 100, after: 300 },
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: "Dear Claims Representative:",
+              size: 20,
+            }),
+          ],
+          spacing: { after: 200 },
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({
+              text:
+                letterData.openingParagraph ||
+                `This letter serves as formal notice of our policy limit demand on behalf of our client, ${letterData.caseInfo.client}, arising from the motor vehicle accident that occurred on ${letterData.caseInfo.dateOfLoss}.`,
+              size: 20,
+            }),
+          ],
+          spacing: { after: 300 },
         })
       );
 

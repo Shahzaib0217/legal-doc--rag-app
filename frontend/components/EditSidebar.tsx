@@ -72,6 +72,9 @@ const EditSidebar: React.FC<EditSidebarProps> = ({
     { value: "attorney-address", label: "Attorney Address" },
     { value: "attorney-contact", label: "Attorney Contact (Phone & Fax)" },
 
+    // Opening paragraph
+    { value: "opening-paragraph", label: "Opening Paragraph" },
+
     // Dynamic sections from analysis data
     ...buildDynamicSections(),
 
@@ -101,6 +104,18 @@ const EditSidebar: React.FC<EditSidebarProps> = ({
     }
     if (section === "attorney-contact") {
       return `Phone: ${letterData.attorney.phone || ""}\nFax: ${letterData.attorney.fax || ""}`;
+    }
+
+    // Handle opening paragraph
+    if (section === "opening-paragraph") {
+      return (
+        letterData.openingParagraph ||
+        `This letter serves as formal notice of our policy limit demand on behalf of our client, ${
+          letterData.caseInfo.client || "[Client Name]"
+        }, arising from the motor vehicle accident that occurred on ${
+          letterData.caseInfo.dateOfLoss || "[Date of Loss]"
+        }.`
+      );
     }
 
     // Handle exhibit sections
@@ -231,6 +246,16 @@ const EditSidebar: React.FC<EditSidebarProps> = ({
       const updatedLetterData = {
         ...letterData,
         attorney: { ...letterData.attorney, phone, fax },
+      };
+      onUpdateLetterData(updatedLetterData);
+      return;
+    }
+
+    // Handle opening paragraph
+    if (selectedSection === "opening-paragraph") {
+      const updatedLetterData = {
+        ...letterData,
+        openingParagraph: editContent,
       };
       onUpdateLetterData(updatedLetterData);
       return;

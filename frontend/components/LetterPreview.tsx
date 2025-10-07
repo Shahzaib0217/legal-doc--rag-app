@@ -157,14 +157,21 @@ const LetterPreview: React.FC<LetterPreviewProps> = ({
           </div>
           {/* Letter Opening */}
           <div className="letter-section">
-            <div className="section-content">
+            <div
+              className={`section-content editable-section ${
+                selectedSection === "opening-paragraph" ? "active" : ""
+              }`}
+              data-section="opening-paragraph"
+              onClick={() => onSectionClick?.("opening-paragraph")}
+            >
               <p>Dear Claims Representative:</p>
               <p>
-                This letter serves as formal notice of our policy limit demand
-                on behalf of our client,{" "}
-                {letterData.caseInfo.client || "[Client Name]"}, arising from
-                the motor vehicle accident that occurred on{" "}
-                {letterData.caseInfo.dateOfLoss || "[Date of Loss]"}.
+                {letterData.openingParagraph ||
+                  `This letter serves as formal notice of our policy limit demand on behalf of our client, ${
+                    letterData.caseInfo.client || "[Client Name]"
+                  }, arising from the motor vehicle accident that occurred on ${
+                    letterData.caseInfo.dateOfLoss || "[Date of Loss]"
+                  }.`}
               </p>
             </div>
           </div>
