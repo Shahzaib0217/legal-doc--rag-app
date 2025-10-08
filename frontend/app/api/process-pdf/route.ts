@@ -153,11 +153,28 @@ const generateGlobalPrompt = (
     - Emphasize ongoing impacts and future needs
     - Extract client identifying information if available (name, policy/claim numbers, incident date)
 
-    CRITICAL INSTRUCTIONS FOR DAMAGES:
-    - specialDamages: List ALL past medical expenses from the exhibits. Each item should include the provider name and amount. Calculate the accurate total.
-    - futureMedicalExpenses: List any recommended future treatments mentioned in medical records. If none mentioned, you may omit this section or estimate based on typical case progression.
-    - generalDamages: List 3-5 non-economic damage items (pain/suffering, loss of enjoyment, emotional distress, etc.). Estimate a reasonable total based on injury severity.
-    - All amounts must be numbers (not strings), and items must match the exact format shown in the example above.
+    CRITICAL INSTRUCTIONS FOR DAMAGES - MUST USE EXACT AMOUNTS FROM EXHIBITS:
+
+    For Special Damages:
+    - You MUST extract the EXACT dollar amounts from each exhibit summary below
+    - Each exhibit has an "expenses" field with the actual medical bill amount
+    - Create one item for each medical provider/service found in the exhibits
+    - Use the EXACT provider name from the exhibit
+    - Use the EXACT amount from the exhibit's "expenses" field
+    - Calculate the total by summing ALL exhibit expenses
+    - DO NOT estimate or make up amounts - use only what's in the exhibits
+
+    For Future Medical Expenses:
+    - Only include if medical records explicitly mention recommended future treatments with estimated costs
+    - If no future treatments are mentioned, you may omit this entire section
+    - DO NOT make up future treatment recommendations
+
+    For General Damages:
+    - List 3-5 specific non-economic damage items based on the actual injuries described in the exhibits
+    - Estimate a reasonable total (typically 3-5x the special damages for moderate to severe injuries)
+    - Base items on actual injury descriptions from the medical records
+
+    IMPORTANT: All amounts must be numbers (not strings). Use the exact format shown in the example above.
 
     Current Client Info Status:
     - Client Name: ${aggregatedClientInfo.clientName || "Not found"}

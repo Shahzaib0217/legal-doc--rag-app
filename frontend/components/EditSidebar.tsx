@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { LetterData, Exhibit } from "@/types";
+import ExhibitManager from "./ExhibitManager";
 
 interface EditSidebarProps {
   letterData: LetterData;
@@ -37,6 +38,111 @@ const EditSidebar: React.FC<EditSidebarProps> = ({
       .replace(/([A-Z])/g, " $1") // Add space before capital letters
       .replace(/^./, (str) => str.toUpperCase()) // Capitalize first letter
       .trim();
+  };
+
+  // Helper function to format damages object for editing
+  const formatDamagesForEditing = (damages: any): string => {
+    let text = "";
+
+    if (damages.specialDamages) {
+      text += `SPECIAL DAMAGES - $${damages.specialDamages.total.toLocaleString()}\n\n`;
+      damages.specialDamages.items.forEach((item: any) => {
+        text += `${item.description}: $${item.amount.toLocaleString()}\n`;
+      });
+      text += `\nTotal Past Medical Expenses: $${damages.specialDamages.total.toLocaleString()}\n\n`;
+    }
+
+    if (damages.futureMedicalExpenses) {
+      text += `FUTURE MEDICAL EXPENSES - $${damages.futureMedicalExpenses.total.toLocaleString()}\n\n`;
+      damages.futureMedicalExpenses.items.forEach((item: any) => {
+        text += `${item.description}: $${item.amount.toLocaleString()}\n`;
+      });
+      text += "\n";
+    }
+
+    if (damages.generalDamages) {
+      text += `GENERAL DAMAGES - $${damages.generalDamages.total.toLocaleString()}\n\n`;
+      damages.generalDamages.items.forEach((item: string) => {
+        text += `${item}\n`;
+      });
+    }
+
+    return text.trim();
+  };
+
+  // Helper function to parse edited damages text back to structured format
+  const parseDamagesFromText = (text: string): any => {
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+    const damages: any = {};
+
+    let currentSection: 'special' | 'future' | 'general' | null = null;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const upperLine = line.toUpperCase();
+
+      // Detect section headers
+      if (upperLine.includes('SPECIAL DAMAGES')) {
+        currentSection = 'special';
+        damages.specialDamages = { total: 0, items: [] };
+        const match = line.match(/\$([0-9,]+(?:\.\d{2})?)/);
+        if (match) {
+          damages.specialDamages.total = parseFloat(match[1].replace(/,/g, ''));
+        }
+        continue;
+      } else if (upperLine.includes('FUTURE MEDICAL')) {
+        currentSection = 'future';
+        damages.futureMedicalExpenses = { total: 0, items: [] };
+        const match = line.match(/\$([0-9,]+(?:\.\d{2})?)/);
+        if (match) {
+          damages.futureMedicalExpenses.total = parseFloat(match[1].replace(/,/g, ''));
+        }
+        continue;
+      } else if (upperLine.includes('GENERAL DAMAGES')) {
+        currentSection = 'general';
+        damages.generalDamages = { total: 0, items: [] };
+        const match = line.match(/\$([0-9,]+(?:\.\d{2})?)/);
+        if (match) {
+          damages.generalDamages.total = parseFloat(match[1].replace(/,/g, ''));
+        }
+        continue;
+      }
+
+      // Skip total lines
+      if (upperLine.includes('TOTAL PAST MEDICAL')) {
+        continue;
+      }
+
+      // Parse items
+      if (currentSection === 'special' || currentSection === 'future') {
+        const match = line.match(/^(.+?):\s*\$([0-9,]+(?:\.\d{2})?)/);
+        if (match) {
+          const description = match[1].trim();
+          const amount = parseFloat(match[2].replace(/,/g, ''));
+          if (currentSection === 'special') {
+            damages.specialDamages.items.push({ description, amount });
+          } else {
+            damages.futureMedicalExpenses.items.push({ description, amount });
+          }
+        }
+      } else if (currentSection === 'general' && line && !upperLine.includes('GENERAL DAMAGES')) {
+        damages.generalDamages.items.push(line);
+      }
+    }
+
+    // Recalculate totals if items exist
+    if (damages.specialDamages?.items.length > 0) {
+      damages.specialDamages.total = damages.specialDamages.items.reduce(
+        (sum: number, item: any) => sum + item.amount, 0
+      );
+    }
+    if (damages.futureMedicalExpenses?.items.length > 0) {
+      damages.futureMedicalExpenses.total = damages.futureMedicalExpenses.items.reduce(
+        (sum: number, item: any) => sum + item.amount, 0
+      );
+    }
+
+    return damages;
   };
 
   // Build sections dynamically from globalAnalysis data
@@ -135,7 +241,10 @@ const EditSidebar: React.FC<EditSidebarProps> = ({
       const value = globalAnalysis[section as keyof typeof globalAnalysis];
 
       if (value !== undefined) {
-        if (Array.isArray(value)) {
+        // Special handling for damages object
+        if (section === 'damages' && typeof value === 'object' && value !== null && !Array.isArray(value)) {
+          content = formatDamagesForEditing(value);
+        } else if (Array.isArray(value)) {
           content = value.join("\n");
         } else {
           content = String(value);
@@ -149,7 +258,10 @@ const EditSidebar: React.FC<EditSidebarProps> = ({
       const value = suggested[section as keyof typeof suggested];
 
       if (value !== undefined) {
-        if (Array.isArray(value)) {
+        // Special handling for damages object
+        if (section === 'damages' && typeof value === 'object' && value !== null && !Array.isArray(value)) {
+          content = formatDamagesForEditing(value);
+        } else if (Array.isArray(value)) {
           content = value.join("\n");
         } else {
           content = String(value);
@@ -312,17 +424,23 @@ const EditSidebar: React.FC<EditSidebarProps> = ({
       updatedLetterData.apiData!.globalAnalysis = {} as any;
     }
 
-    // Determine if content should be array (for injuries or similar list fields)
-    const shouldBeArray =
-      selectedSection === "injuries" ||
-      (editContent.includes("\n") && editContent.split("\n").length > 3);
+    // Special handling for damages section
+    let finalContent: any;
+    if (selectedSection === 'damages') {
+      finalContent = parseDamagesFromText(editContent);
+    } else {
+      // Determine if content should be array (for injuries or similar list fields)
+      const shouldBeArray =
+        selectedSection === "injuries" ||
+        (editContent.includes("\n") && editContent.split("\n").length > 3);
 
-    const finalContent = shouldBeArray
-      ? editContent
-          .split("\n")
-          .map((s) => s.trim())
-          .filter(Boolean)
-      : editContent;
+      finalContent = shouldBeArray
+        ? editContent
+            .split("\n")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : editContent;
+    }
 
     // Update both suggestedContent and globalAnalysis
     (updatedLetterData.suggestedContent as any)[selectedSection] = finalContent;
@@ -478,6 +596,13 @@ const EditSidebar: React.FC<EditSidebarProps> = ({
             </div>
           </div>
         )}
+      </div>
+
+      <div className="sidebar-section">
+        <ExhibitManager
+          exhibits={exhibits}
+          onUpdateExhibits={onUpdateExhibits || (() => {})}
+        />
       </div>
 
       <div className="sidebar-section">

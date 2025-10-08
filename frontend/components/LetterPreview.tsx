@@ -58,7 +58,66 @@ const LetterPreview: React.FC<LetterPreviewProps> = ({
   };
 
   // Render content based on data type
-  const renderSectionContent = (value: any) => {
+  const renderSectionContent = (value: any, key?: string) => {
+    // Special handling for structured damages
+    if (key === 'damages' && typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      return (
+        <div className="damages-breakdown">
+          {/* Special Damages */}
+          {value.specialDamages && (
+            <div className="damage-section">
+              <h4>
+                <strong>1. Special Damages – ${value.specialDamages.total.toLocaleString()}</strong>
+              </h4>
+              <ul>
+                {value.specialDamages.items.map((item: any, idx: number) => (
+                  <li key={idx}>
+                    ○ {item.description}: ${item.amount.toLocaleString()}
+                  </li>
+                ))}
+                <li>
+                  ○ Total Past Medical Expenses: ${value.specialDamages.total.toLocaleString()}
+                </li>
+              </ul>
+            </div>
+          )}
+
+          {/* Future Medical Expenses */}
+          {value.futureMedicalExpenses && (
+            <div className="damage-section">
+              <h4>
+                <strong>2. Future Medical Expenses – ${value.futureMedicalExpenses.total.toLocaleString()}</strong>
+              </h4>
+              <ul>
+                {value.futureMedicalExpenses.items.map((item: any, idx: number) => (
+                  <li key={idx}>
+                    {String.fromCharCode(97 + idx)}. {item.description}: ${item.amount.toLocaleString()}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* General Damages */}
+          {value.generalDamages && (
+            <div className="damage-section">
+              <h4>
+                <strong>3. General Damages – ${value.generalDamages.total.toLocaleString()}</strong>
+              </h4>
+              <ul>
+                {value.generalDamages.items.map((item: string, idx: number) => (
+                  <li key={idx}>
+                    {String.fromCharCode(97 + idx)}. {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Array rendering
     if (Array.isArray(value)) {
       return (
         <ul>
@@ -67,15 +126,16 @@ const LetterPreview: React.FC<LetterPreviewProps> = ({
           ))}
         </ul>
       );
-    } else {
-      return (
-        <div
-          dangerouslySetInnerHTML={{
-            __html: String(value).replace(/\n/g, "<br/>"),
-          }}
-        />
-      );
     }
+
+    // String rendering
+    return (
+      <div
+        dangerouslySetInnerHTML={{
+          __html: String(value).replace(/\n/g, "<br/>"),
+        }}
+      />
+    );
   };
 
   return (
@@ -194,7 +254,7 @@ const LetterPreview: React.FC<LetterPreviewProps> = ({
                 data-section={key}
                 onClick={() => onSectionClick?.(key)}
               >
-                {renderSectionContent(value)}
+                {renderSectionContent(value, key)}
               </div>
             </div>
           ))}
