@@ -64,11 +64,32 @@ export interface Exhibit {
   isError?: boolean;
 }
 
+export interface DamagesBreakdown {
+  specialDamages?: {
+    total: number;
+    items: Array<{
+      description: string;
+      amount: number;
+    }>;
+  };
+  futureMedicalExpenses?: {
+    total: number;
+    items: Array<{
+      description: string;
+      amount: number;
+    }>;
+  };
+  generalDamages?: {
+    total: number;
+    items: string[];
+  };
+}
+
 export interface GlobalAnalysis {
   natureOfClaim: string;
   liability: string;
   injuries: string[];
-  damages: string;
+  damages: string | DamagesBreakdown;
   facts: string;
   clientInfo?: ClientInfo;
 }
@@ -112,7 +133,7 @@ export interface LetterData {
     liability?: string;
     injuries?: string[] | string;
     medical?: string;
-    damages?: string;
+    damages?: string | DamagesBreakdown;
     demand?: string;
   };
   suggestedHeadings?: {

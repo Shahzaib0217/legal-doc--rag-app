@@ -109,13 +109,36 @@ const generateGlobalPrompt = (
     CRITICAL: Return ONLY valid JSON in this exact format:
     {
       "natureOfClaim": "Detailed explanation of the legal claim type, basis for liability, and why damages are owed (minimum 4-5 sentences)",
-      "liability": "Thorough analysis of defendant's fault, negligence, and legal responsibility with specific details from evidence (minimum 4-5 sentences)", 
+      "liability": "Thorough analysis of defendant's fault, negligence, and legal responsibility with specific details from evidence (minimum 4-5 sentences)",
       "injuries": ["Specific injury 1 with severity", "Specific injury 2 with impact", "Specific injury 3 with prognosis"],
-      "damages": "Comprehensive breakdown of economic and non-economic damages including past/future medical costs, pain and suffering, lost wages (minimum 4-5 sentences)",
+      "damages": {
+        "specialDamages": {
+          "total": 78018.00,
+          "items": [
+            { "description": "Provider/Service name with brief description", "amount": 2346.00 },
+            { "description": "Another provider/service", "amount": 3241.60 }
+          ]
+        },
+        "futureMedicalExpenses": {
+          "total": 40500.00,
+          "items": [
+            { "description": "Recommended future treatment/procedure", "amount": 12000.00 },
+            { "description": "Another recommended treatment", "amount": 28500.00 }
+          ]
+        },
+        "generalDamages": {
+          "total": 300000.00,
+          "items": [
+            "Severe and persistent pain and suffering",
+            "Loss of enjoyment of life due to activity restrictions",
+            "Emotional distress from the chronic nature of injuries and uncertain prognosis"
+          ]
+        }
+      },
       "facts": "Detailed chronological narrative of the incident, treatment, and current status with specific dates and providers where available (minimum 6-8 sentences)",
       "clientInfo": {
         "clientName": "Full client/patient name if found in exhibits, or null",
-        "policyNumber": "Insurance policy number if found in exhibits, or null", 
+        "policyNumber": "Insurance policy number if found in exhibits, or null",
         "claimNumber": "Insurance claim number if found in exhibits, or null",
         "dateOfLoss": "Date of incident/loss/accident if found in exhibits (MM/DD/YYYY format), or null"
       }
@@ -129,6 +152,12 @@ const generateGlobalPrompt = (
     - Establish clear causal relationship between incident and injuries
     - Emphasize ongoing impacts and future needs
     - Extract client identifying information if available (name, policy/claim numbers, incident date)
+
+    CRITICAL INSTRUCTIONS FOR DAMAGES:
+    - specialDamages: List ALL past medical expenses from the exhibits. Each item should include the provider name and amount. Calculate the accurate total.
+    - futureMedicalExpenses: List any recommended future treatments mentioned in medical records. If none mentioned, you may omit this section or estimate based on typical case progression.
+    - generalDamages: List 3-5 non-economic damage items (pain/suffering, loss of enjoyment, emotional distress, etc.). Estimate a reasonable total based on injury severity.
+    - All amounts must be numbers (not strings), and items must match the exact format shown in the example above.
 
     Current Client Info Status:
     - Client Name: ${aggregatedClientInfo.clientName || "Not found"}
