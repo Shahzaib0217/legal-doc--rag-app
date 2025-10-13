@@ -295,6 +295,25 @@ const LetterPreview: React.FC<LetterPreviewProps> = ({
                     </strong>
                   </p>
                 )}
+                {exhibit.images && exhibit.images.length > 0 && (
+                  <div style={{ marginTop: "1rem" }}>
+                    {exhibit.images.map((image, imgIdx) => (
+                      <div key={imgIdx} style={{ marginBottom: "1rem", textAlign: "center" }}>
+                        <img
+                          src={image}
+                          alt={`Exhibit ${index + 1} - Image ${imgIdx + 1}`}
+                          style={{
+                            maxWidth: "100%",
+                            maxHeight: "500px",
+                            border: "1px solid #ddd",
+                            borderRadius: "4px",
+                            padding: "4px",
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ))}

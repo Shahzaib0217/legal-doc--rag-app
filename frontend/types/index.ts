@@ -62,6 +62,7 @@ export interface Exhibit {
   processedAt?: string;
   fileHash?: string;
   isError?: boolean;
+  images?: string[]; // Array of Base64 encoded image data
 }
 
 export interface DamagesBreakdown {
