@@ -907,7 +907,7 @@ export async function POST(request: NextRequest) {
 
           // Add images if present
           if (exhibit.images && exhibit.images.length > 0) {
-            exhibit.images.forEach((image) => {
+            exhibit.images.forEach((image: string) => {
               try {
                 const imageBuffer = base64ToBuffer(image);
                 sections.push(
@@ -919,7 +919,7 @@ export async function POST(request: NextRequest) {
                           width: 500,
                           height: 375,
                         },
-                      }),
+                      } as any),
                     ],
                     alignment: AlignmentType.CENTER,
                     spacing: { after: SPACING.LARGE },
@@ -1552,7 +1552,7 @@ export async function POST(request: NextRequest) {
 
           // Add images if present
           if (exhibit.images && exhibit.images.length > 0) {
-            exhibit.images.forEach((image) => {
+            exhibit.images.forEach((image: string) => {
               try {
                 const imageBuffer = base64ToBuffer(image);
                 documentSections.push(
@@ -1564,7 +1564,7 @@ export async function POST(request: NextRequest) {
                           width: 500,
                           height: 375,
                         },
-                      }),
+                      } as any),
                     ],
                     alignment: AlignmentType.CENTER,
                     spacing: { after: 200 },
