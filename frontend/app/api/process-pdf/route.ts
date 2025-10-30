@@ -112,28 +112,57 @@ const generateGlobalPrompt = (
       "liability": "Thorough analysis of defendant's fault, negligence, and legal responsibility with specific details from evidence (minimum 4-5 sentences)",
       "injuries": ["Specific injury 1 with severity", "Specific injury 2 with impact", "Specific injury 3 with prognosis"],
       "damages": {
-        "specialDamages": {
-          "total": 78018.00,
-          "items": [
-            { "description": "Provider/Service name with brief description", "amount": 2346.00 },
-            { "description": "Another provider/service", "amount": 3241.60 }
-          ]
-        },
-        "futureMedicalExpenses": {
-          "total": 40500.00,
-          "items": [
-            { "description": "Recommended future treatment/procedure", "amount": 12000.00 },
-            { "description": "Another recommended treatment", "amount": 28500.00 }
-          ]
-        },
-        "generalDamages": {
-          "total": 300000.00,
-          "items": [
-            "Severe and persistent pain and suffering",
-            "Loss of enjoyment of life due to activity restrictions",
-            "Emotional distress from the chronic nature of injuries and uncertain prognosis"
-          ]
-        }
+        "people": [
+          {
+            "name": "Person Name 1",
+            "specialDamages": {
+              "total": 78018.00,
+              "items": [
+                { "description": "Provider/Service name with brief description", "amount": 2346.00 },
+                { "description": "Another provider/service", "amount": 3241.60 }
+              ]
+            },
+            "futureMedicalExpenses": {
+              "total": 40500.00,
+              "items": [
+                { "description": "Recommended future treatment/procedure", "amount": 12000.00 },
+                { "description": "Another recommended treatment", "amount": 28500.00 }
+              ]
+            },
+            "generalDamages": {
+              "total": 300000.00,
+              "items": [
+                "Severe and persistent pain and suffering",
+                "Loss of enjoyment of life due to activity restrictions",
+                "Emotional distress from the chronic nature of injuries and uncertain prognosis"
+              ]
+            }
+          },
+          {
+            "name": "Person Name 2",
+            "specialDamages": {
+              "total": 34018.00,
+              "items": [
+                { "description": "Provider/Service name with brief description", "amount": 2346.00 },
+                { "description": "Another provider/service", "amount": 3241.60 }
+              ]
+            },
+            "futureMedicalExpenses": {
+              "total": 37500.00,
+              "items": [
+                { "description": "Recommended future treatment/procedure", "amount": 37500.00 }
+              ]
+            },
+            "generalDamages": {
+              "total": 300000.00,
+              "items": [
+                "Severe and persistent pain and suffering",
+                "Loss of enjoyment of life due to activity restrictions"
+              ]
+            }
+          }
+        ],
+        "totalSettlementDemand": 618518.00
       },
       "facts": "Detailed chronological narrative of the incident, treatment, and current status with specific dates and providers where available (minimum 6-8 sentences)",
       "clientInfo": {
@@ -155,24 +184,31 @@ const generateGlobalPrompt = (
 
     CRITICAL INSTRUCTIONS FOR DAMAGES - MUST USE EXACT AMOUNTS FROM EXHIBITS:
 
-    For Special Damages:
+    Multiple Person Damages Structure:
+    - If medical records mention multiple injured parties/claimants, create a "people" array with one object per person
+    - Each person object should include their name (full name if available in medical records)
+    - Organize all damages by person - do NOT mix damages between people
+    - The "totalSettlementDemand" is the sum of all damages across all people
+
+    For Special Damages (per person):
     - You MUST extract the EXACT dollar amounts from each exhibit summary below
     - Each exhibit has an "expenses" field with the actual medical bill amount
-    - Create one item for each medical provider/service found in the exhibits
+    - Attribute medical expenses to the correct person based on patient names in exhibits
+    - Create one item for each medical provider/service found in the exhibits for that person
     - Use the EXACT provider name from the exhibit
     - Use the EXACT amount from the exhibit's "expenses" field
-    - Calculate the total by summing ALL exhibit expenses
+    - Calculate the total by summing ALL expenses for that specific person
     - DO NOT estimate or make up amounts - use only what's in the exhibits
 
-    For Future Medical Expenses:
-    - Only include if medical records explicitly mention recommended future treatments with estimated costs
-    - If no future treatments are mentioned, you may omit this entire section
+    For Future Medical Expenses (per person):
+    - Only include if medical records explicitly mention recommended future treatments with estimated costs for that person
+    - If no future treatments are mentioned for a person, you may omit this section for them
     - DO NOT make up future treatment recommendations
 
-    For General Damages:
-    - List 3-5 specific non-economic damage items based on the actual injuries described in the exhibits
-    - Estimate a reasonable total (typically 3-5x the special damages for moderate to severe injuries)
-    - Base items on actual injury descriptions from the medical records
+    For General Damages (per person):
+    - List 3-5 specific non-economic damage items based on the actual injuries described for that person
+    - Estimate a reasonable total per person (typically 3-5x the special damages for moderate to severe injuries)
+    - Base items on actual injury descriptions from the medical records specific to that person
 
     IMPORTANT: All amounts must be numbers (not strings). Use the exact format shown in the example above.
 
@@ -181,7 +217,7 @@ const generateGlobalPrompt = (
     - Policy Number: ${aggregatedClientInfo.policyNumber || "Not found"}
     - Claim Number: ${aggregatedClientInfo.claimNumber || "Not found"}
     - Date of Loss: ${aggregatedClientInfo.dateOfLoss || "Not found"}
-    
+
     If any client info is missing above, try to extract it from the exhibit summaries.
 
     Exhibit Summaries:

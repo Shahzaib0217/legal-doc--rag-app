@@ -44,27 +44,66 @@ const EditSidebar: React.FC<EditSidebarProps> = ({
   const formatDamagesForEditing = (damages: any): string => {
     let text = "";
 
-    if (damages.specialDamages) {
-      text += `SPECIAL DAMAGES - $${damages.specialDamages.total.toLocaleString()}\n\n`;
-      damages.specialDamages.items.forEach((item: any) => {
-        text += `${item.description}: $${item.amount.toLocaleString()}\n`;
-      });
-      text += `\nTotal Past Medical Expenses: $${damages.specialDamages.total.toLocaleString()}\n\n`;
-    }
+    // Handle new multi-person structure
+    if (damages.people && Array.isArray(damages.people)) {
+      damages.people.forEach((person: any) => {
+        text += `PERSON: ${person.name}\n\n`;
 
-    if (damages.futureMedicalExpenses) {
-      text += `FUTURE MEDICAL EXPENSES - $${damages.futureMedicalExpenses.total.toLocaleString()}\n\n`;
-      damages.futureMedicalExpenses.items.forEach((item: any) => {
-        text += `${item.description}: $${item.amount.toLocaleString()}\n`;
-      });
-      text += "\n";
-    }
+        if (person.specialDamages) {
+          text += `SPECIAL DAMAGES - $${person.specialDamages.total.toLocaleString()}\n\n`;
+          person.specialDamages.items.forEach((item: any) => {
+            text += `${item.description}: $${item.amount.toLocaleString()}\n`;
+          });
+          text += `\nTotal (Actual Past Bills): $${person.specialDamages.total.toLocaleString()}\n\n`;
+        }
 
-    if (damages.generalDamages) {
-      text += `GENERAL DAMAGES - $${damages.generalDamages.total.toLocaleString()}\n\n`;
-      damages.generalDamages.items.forEach((item: string) => {
-        text += `${item}\n`;
+        if (person.futureMedicalExpenses) {
+          text += `FUTURE MEDICAL EXPENSES - $${person.futureMedicalExpenses.total.toLocaleString()}\n\n`;
+          person.futureMedicalExpenses.items.forEach((item: any) => {
+            text += `${item.description}: $${item.amount.toLocaleString()}\n`;
+          });
+          text += "\n";
+        }
+
+        if (person.generalDamages) {
+          text += `GENERAL DAMAGES - $${person.generalDamages.total.toLocaleString()}\n\n`;
+          person.generalDamages.items.forEach((item: string) => {
+            text += `${item}\n`;
+          });
+          text += "\n";
+        }
+
+        text += "---\n\n";
       });
+
+      // Add total settlement demand
+      if (damages.totalSettlementDemand) {
+        text += `TOTAL SETTLEMENT DEMAND: $${damages.totalSettlementDemand.toLocaleString()}`;
+      }
+    } else {
+      // Handle legacy single person structure for backward compatibility
+      if (damages.specialDamages) {
+        text += `SPECIAL DAMAGES - $${damages.specialDamages.total.toLocaleString()}\n\n`;
+        damages.specialDamages.items.forEach((item: any) => {
+          text += `${item.description}: $${item.amount.toLocaleString()}\n`;
+        });
+        text += `\nTotal Past Medical Expenses: $${damages.specialDamages.total.toLocaleString()}\n\n`;
+      }
+
+      if (damages.futureMedicalExpenses) {
+        text += `FUTURE MEDICAL EXPENSES - $${damages.futureMedicalExpenses.total.toLocaleString()}\n\n`;
+        damages.futureMedicalExpenses.items.forEach((item: any) => {
+          text += `${item.description}: $${item.amount.toLocaleString()}\n`;
+        });
+        text += "\n";
+      }
+
+      if (damages.generalDamages) {
+        text += `GENERAL DAMAGES - $${damages.generalDamages.total.toLocaleString()}\n\n`;
+        damages.generalDamages.items.forEach((item: string) => {
+          text += `${item}\n`;
+        });
+      }
     }
 
     return text.trim();
@@ -73,76 +112,137 @@ const EditSidebar: React.FC<EditSidebarProps> = ({
   // Helper function to parse edited damages text back to structured format
   const parseDamagesFromText = (text: string): any => {
     const lines = text.split('\n').map(l => l.trim()).filter(l => l);
-    const damages: any = {};
-
+    const people: any[] = [];
+    let currentPerson: any = null;
     let currentSection: 'special' | 'future' | 'general' | null = null;
+    let totalSettlementDemand = 0;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const upperLine = line.toUpperCase();
 
+      // Detect person header
+      if (upperLine.startsWith('PERSON:')) {
+        if (currentPerson) {
+          people.push(currentPerson);
+        }
+        const personName = line.replace(/PERSON:\s*/i, '').trim();
+        currentPerson = { name: personName };
+        currentSection = null;
+        continue;
+      }
+
+      // Detect total settlement demand
+      if (upperLine.includes('TOTAL SETTLEMENT DEMAND')) {
+        const match = line.match(/\$([0-9,]+(?:\.\d{2})?)/);
+        if (match) {
+          totalSettlementDemand = parseFloat(match[1].replace(/,/g, ''));
+        }
+        continue;
+      }
+
+      // Skip dividers
+      if (line === '---') {
+        continue;
+      }
+
+      // Ensure we have a current person to work with
+      if (!currentPerson) {
+        currentPerson = { name: 'Unnamed' };
+      }
+
       // Detect section headers
       if (upperLine.includes('SPECIAL DAMAGES')) {
         currentSection = 'special';
-        damages.specialDamages = { total: 0, items: [] };
+        currentPerson.specialDamages = { total: 0, items: [] };
         const match = line.match(/\$([0-9,]+(?:\.\d{2})?)/);
         if (match) {
-          damages.specialDamages.total = parseFloat(match[1].replace(/,/g, ''));
+          currentPerson.specialDamages.total = parseFloat(match[1].replace(/,/g, ''));
         }
         continue;
       } else if (upperLine.includes('FUTURE MEDICAL')) {
         currentSection = 'future';
-        damages.futureMedicalExpenses = { total: 0, items: [] };
+        currentPerson.futureMedicalExpenses = { total: 0, items: [] };
         const match = line.match(/\$([0-9,]+(?:\.\d{2})?)/);
         if (match) {
-          damages.futureMedicalExpenses.total = parseFloat(match[1].replace(/,/g, ''));
+          currentPerson.futureMedicalExpenses.total = parseFloat(match[1].replace(/,/g, ''));
         }
         continue;
       } else if (upperLine.includes('GENERAL DAMAGES')) {
         currentSection = 'general';
-        damages.generalDamages = { total: 0, items: [] };
+        currentPerson.generalDamages = { total: 0, items: [] };
         const match = line.match(/\$([0-9,]+(?:\.\d{2})?)/);
         if (match) {
-          damages.generalDamages.total = parseFloat(match[1].replace(/,/g, ''));
+          currentPerson.generalDamages.total = parseFloat(match[1].replace(/,/g, ''));
         }
         continue;
       }
 
       // Skip total lines
-      if (upperLine.includes('TOTAL PAST MEDICAL')) {
+      if (upperLine.includes('TOTAL PAST MEDICAL') || upperLine.includes('TOTAL (ACTUAL')) {
         continue;
       }
 
-      // Parse items
+      // Parse items based on current section
       if (currentSection === 'special' || currentSection === 'future') {
         const match = line.match(/^(.+?):\s*\$([0-9,]+(?:\.\d{2})?)/);
         if (match) {
           const description = match[1].trim();
           const amount = parseFloat(match[2].replace(/,/g, ''));
           if (currentSection === 'special') {
-            damages.specialDamages.items.push({ description, amount });
+            currentPerson.specialDamages.items.push({ description, amount });
           } else {
-            damages.futureMedicalExpenses.items.push({ description, amount });
+            currentPerson.futureMedicalExpenses.items.push({ description, amount });
           }
         }
       } else if (currentSection === 'general' && line && !upperLine.includes('GENERAL DAMAGES')) {
-        damages.generalDamages.items.push(line);
+        currentPerson.generalDamages.items.push(line);
       }
     }
 
-    // Recalculate totals if items exist
-    if (damages.specialDamages?.items.length > 0) {
-      damages.specialDamages.total = damages.specialDamages.items.reduce(
-        (sum: number, item: any) => sum + item.amount, 0
-      );
-    }
-    if (damages.futureMedicalExpenses?.items.length > 0) {
-      damages.futureMedicalExpenses.total = damages.futureMedicalExpenses.items.reduce(
-        (sum: number, item: any) => sum + item.amount, 0
-      );
+    // Add last person if exists
+    if (currentPerson) {
+      people.push(currentPerson);
     }
 
-    return damages;
+    // Recalculate totals for all people
+    people.forEach((person: any) => {
+      if (person.specialDamages?.items.length > 0) {
+        person.specialDamages.total = person.specialDamages.items.reduce(
+          (sum: number, item: any) => sum + item.amount, 0
+        );
+      }
+      if (person.futureMedicalExpenses?.items.length > 0) {
+        person.futureMedicalExpenses.total = person.futureMedicalExpenses.items.reduce(
+          (sum: number, item: any) => sum + item.amount, 0
+        );
+      }
+      if (person.generalDamages?.items.length > 0 && person.generalDamages.total === 0) {
+        // Try to extract total from items if not set
+        const lastItem = person.generalDamages.items[person.generalDamages.items.length - 1];
+        if (typeof lastItem === 'string') {
+          const match = lastItem.match(/\$([0-9,]+(?:\.\d{2})?)/);
+          if (match) {
+            person.generalDamages.total = parseFloat(match[1].replace(/,/g, ''));
+          }
+        }
+      }
+    });
+
+    // Calculate total settlement demand if not provided
+    if (totalSettlementDemand === 0) {
+      totalSettlementDemand = people.reduce((sum: number, person: any) => {
+        return sum +
+          (person.specialDamages?.total || 0) +
+          (person.futureMedicalExpenses?.total || 0) +
+          (person.generalDamages?.total || 0);
+      }, 0);
+    }
+
+    return {
+      people,
+      totalSettlementDemand
+    };
   };
 
   // Build sections dynamically from globalAnalysis data

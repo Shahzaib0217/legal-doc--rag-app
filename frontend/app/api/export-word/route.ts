@@ -7,6 +7,12 @@ import {
   HeadingLevel,
   AlignmentType,
   BorderStyle,
+  Table,
+  TableRow,
+  TableCell,
+  WidthType,
+  VerticalAlign,
+  ImageRun,
 } from "docx";
 
 // TypeScript interfaces for better type safety
@@ -19,6 +25,51 @@ interface SectionData {
 interface ExhibitData {
   heading: string;
   summary: string;
+  images?: string[]; // Array of Base64 encoded images
+}
+
+interface DamagesCategoryItem {
+  description: string;
+  amount: number;
+}
+
+interface DamagesCategory {
+  total: number;
+  items: DamagesCategoryItem[];
+}
+
+interface PersonDamages {
+  name: string;
+  specialDamages?: DamagesCategory;
+  futureMedicalExpenses?: DamagesCategory;
+  generalDamages?: {
+    total: number;
+    items: string[];
+  };
+}
+
+interface DamagesBreakdown {
+  people?: PersonDamages[];
+  totalSettlementDemand?: number;
+  // Legacy structure support
+  specialDamages?: {
+    total: number;
+    items: Array<{
+      description: string;
+      amount: number;
+    }>;
+  };
+  futureMedicalExpenses?: {
+    total: number;
+    items: Array<{
+      description: string;
+      amount: number;
+    }>;
+  };
+  generalDamages?: {
+    total: number;
+    items: string[];
+  };
 }
 
 // Constants for consistent styling
@@ -100,6 +151,12 @@ const wrapTextToLines = (
   }
 
   return lines;
+};
+
+// Helper function to convert base64 image to buffer
+const base64ToBuffer = (base64: string): Buffer => {
+  const base64Data = base64.replace(/^data:image\/\w+;base64,/, "");
+  return Buffer.from(base64Data, "base64");
 };
 
 export async function POST(request: NextRequest) {
@@ -273,6 +330,124 @@ export async function POST(request: NextRequest) {
       return [...paragraphs, ...additionalParagraphs];
     };
 
+    // Helper to parse string damages into structured format (fallback for legacy data)
+    const parseStringDamages = (damagesString: string): DamagesBreakdown => {
+      // This is a simple fallback - returns a basic structure
+      // In practice, the AI should always provide structured damages
+      return {
+        specialDamages: {
+          total: letterData.totalMedicalExpenses || 0,
+          items: [
+            { description: "Past medical expenses (see exhibits for details)", amount: letterData.totalMedicalExpenses || 0 }
+          ]
+        },
+        generalDamages: {
+          total: 300000,
+          items: [
+            "Pain and suffering",
+            "Loss of enjoyment of life",
+            "Emotional distress"
+          ]
+        }
+      };
+    };
+
+    // Helper to format damages content - ALWAYS returns structured format
+    const formatDamagesContent = (damages: string | DamagesBreakdown): string[] => {
+      const lines: string[] = [];
+
+      // Convert to structured format if it's a string
+      const structuredDamages = typeof damages === 'string'
+        ? parseStringDamages(damages)
+        : damages;
+
+      // Handle new multi-person structure
+      if (structuredDamages.people && Array.isArray(structuredDamages.people)) {
+        // Add opening paragraph with total settlement demand
+        const totalDemand = structuredDamages.totalSettlementDemand || 0;
+        lines.push(`Based on the foregoing, we demand payment in the amount of $${typeof totalDemand === 'number' ? totalDemand.toLocaleString() : '0'} to settle claims arising from this incident. Please contact the undersigned to discuss settlement within thirty (30) days of receipt of this letter.`);
+        lines.push("");
+
+        // Process each person's damages
+        structuredDamages.people.forEach((person) => {
+          // Special Damages for this person
+          if (person.specialDamages && typeof person.specialDamages.total === 'number') {
+            lines.push(`• Special Damages for ${person.name} (Past Medical Expenses): $ – $${person.specialDamages.total.toLocaleString()}`);
+            if (Array.isArray(person.specialDamages.items)) {
+              person.specialDamages.items.forEach((item) => {
+                const amount = typeof item.amount === 'number' ? item.amount.toLocaleString() : '0';
+                lines.push(`  ○ ${item.description} $${amount}`);
+              });
+            }
+            lines.push(`  ○ Total (Actual Past Bills) $${person.specialDamages.total.toLocaleString()}`);
+            lines.push("");
+          }
+
+          // Future Medical Expenses for this person
+          if (person.futureMedicalExpenses && typeof person.futureMedicalExpenses.total === 'number') {
+            lines.push(`• Future Medical Expenses for ${person.name}: $${person.futureMedicalExpenses.total.toLocaleString()}`);
+            if (Array.isArray(person.futureMedicalExpenses.items)) {
+              person.futureMedicalExpenses.items.forEach((item, index) => {
+                const letter = String.fromCharCode(97 + index); // a, b, c, ...
+                const amount = typeof item.amount === 'number' ? item.amount.toLocaleString() : '0';
+                lines.push(`  ${letter}. ${item.description}: $${amount}`);
+              });
+            }
+            lines.push("");
+          }
+
+          // General Damages for this person
+          if (person.generalDamages && typeof person.generalDamages.total === 'number') {
+            lines.push(`• General Damages for ${person.name} (Pain, Suffering, & Loss of Enjoyment): $${person.generalDamages.total.toLocaleString()}`);
+            if (Array.isArray(person.generalDamages.items)) {
+              person.generalDamages.items.forEach((item, index) => {
+                const letter = String.fromCharCode(97 + index); // a, b, c, ...
+                lines.push(`  ${letter}. ${item}`);
+              });
+            }
+            lines.push("");
+          }
+        });
+
+        // Add total settlement demand
+        if (typeof structuredDamages.totalSettlementDemand === 'number') {
+          lines.push(`Total Settlement Demand: $${structuredDamages.totalSettlementDemand.toLocaleString()}`);
+        }
+      } else {
+        // Handle legacy single person structure
+        // Special Damages
+        if (structuredDamages.specialDamages) {
+          lines.push(`1.  Special Damages – $${structuredDamages.specialDamages.total.toLocaleString()}`);
+          structuredDamages.specialDamages.items.forEach((item) => {
+            lines.push(`     ○  ${item.description}: $${item.amount.toLocaleString()}`);
+          });
+          lines.push(`     ○  Total Past Medical Expenses: $${structuredDamages.specialDamages.total.toLocaleString()}`);
+          lines.push("");
+        }
+
+        // Future Medical Expenses
+        if (structuredDamages.futureMedicalExpenses) {
+          lines.push(`2.  Future Medical Expenses – $${structuredDamages.futureMedicalExpenses.total.toLocaleString()}`);
+          structuredDamages.futureMedicalExpenses.items.forEach((item, index) => {
+            const letter = String.fromCharCode(97 + index); // a, b, c, ...
+            lines.push(`     ${letter}.  ${item.description}: $${item.amount.toLocaleString()}`);
+          });
+          lines.push("");
+        }
+
+        // General Damages
+        if (structuredDamages.generalDamages) {
+          lines.push(`3.  General Damages – $${structuredDamages.generalDamages.total.toLocaleString()}`);
+          structuredDamages.generalDamages.items.forEach((item, index) => {
+            const letter = String.fromCharCode(97 + index); // a, b, c, ...
+            lines.push(`     ${letter}.  ${item}`);
+          });
+        }
+      }
+
+      return lines;
+    };
+
     // Helper to build pleading paper content lines
     const buildPleadingContentLines = (): string[] => {
       const contentLines: string[] = [];
@@ -317,7 +492,11 @@ export async function POST(request: NextRequest) {
       dynamicSections.forEach((section) => {
         contentLines.push("", section.title.toUpperCase(), ""); // Empty line, title, empty line
 
-        if (Array.isArray(section.content)) {
+        // Special handling for damages section
+        if (section.key === 'damages') {
+          const damagesLines = formatDamagesContent(section.content as string | DamagesBreakdown);
+          contentLines.push(...damagesLines);
+        } else if (Array.isArray(section.content)) {
           section.content.forEach((item) => contentLines.push(`• ${item}`));
         } else {
           section.content
@@ -498,7 +677,198 @@ export async function POST(request: NextRequest) {
       dynamicSections.forEach((section) => {
         sections.push(createSectionTitleParagraph(section.title));
 
-        if (Array.isArray(section.content)) {
+        // Special handling for damages section - ALWAYS use structured format
+        if (section.key === 'damages') {
+          const damagesContent = section.content as string | DamagesBreakdown;
+
+          // Convert to structured format if string
+          const structuredDamages = typeof damagesContent === 'string'
+            ? parseStringDamages(damagesContent)
+            : damagesContent;
+
+          // Handle new multi-person structure
+          if (structuredDamages.people && Array.isArray(structuredDamages.people)) {
+            // Add opening paragraph with total settlement demand
+            sections.push(
+              createTextParagraph(
+                `Based on the foregoing, we demand payment in the amount of $${structuredDamages.totalSettlementDemand?.toLocaleString() || '0'} to settle claims arising from this incident. Please contact the undersigned to discuss settlement within thirty (30) days of receipt of this letter.`,
+                FONT_SIZES.LARGE,
+                false,
+                { after: SPACING.REGULAR }
+              )
+            );
+
+            // Process each person's damages
+            structuredDamages.people.forEach((person) => {
+              // Special Damages for this person
+              if (person.specialDamages) {
+                sections.push(
+                  createTextParagraph(
+                    `• Special Damages for ${person.name} (Past Medical Expenses): $ – $${person.specialDamages.total.toLocaleString()}`,
+                    FONT_SIZES.LARGE,
+                    true,
+                    { after: SPACING.SMALL }
+                  )
+                );
+                person.specialDamages.items.forEach((item) => {
+                  sections.push(
+                    createTextParagraph(
+                      `  ○ ${item.description} $${item.amount.toLocaleString()}`,
+                      FONT_SIZES.LARGE,
+                      false,
+                      { after: SPACING.SMALL }
+                    )
+                  );
+                });
+                sections.push(
+                  createTextParagraph(
+                    `  ○ Total (Actual Past Bills) $${person.specialDamages.total.toLocaleString()}`,
+                    FONT_SIZES.LARGE,
+                    false,
+                    { after: SPACING.REGULAR }
+                  )
+                );
+              }
+
+              // Future Medical Expenses for this person
+              if (person.futureMedicalExpenses) {
+                sections.push(
+                  createTextParagraph(
+                    `• Future Medical Expenses for ${person.name}: $${person.futureMedicalExpenses.total.toLocaleString()}`,
+                    FONT_SIZES.LARGE,
+                    true,
+                    { after: SPACING.SMALL }
+                  )
+                );
+                person.futureMedicalExpenses.items.forEach((item, index) => {
+                  const letter = String.fromCharCode(97 + index); // a, b, c, ...
+                  sections.push(
+                    createTextParagraph(
+                      `  ${letter}. ${item.description}: $${item.amount.toLocaleString()}`,
+                      FONT_SIZES.LARGE,
+                      false,
+                      { after: SPACING.SMALL }
+                    )
+                  );
+                });
+                sections.push(new Paragraph({ spacing: { after: SPACING.REGULAR } }));
+              }
+
+              // General Damages for this person
+              if (person.generalDamages) {
+                sections.push(
+                  createTextParagraph(
+                    `• General Damages for ${person.name} (Pain, Suffering, & Loss of Enjoyment): $${person.generalDamages.total.toLocaleString()}`,
+                    FONT_SIZES.LARGE,
+                    true,
+                    { after: SPACING.SMALL }
+                  )
+                );
+                person.generalDamages.items.forEach((item, index) => {
+                  const letter = String.fromCharCode(97 + index); // a, b, c, ...
+                  sections.push(
+                    createTextParagraph(
+                      `  ${letter}. ${item}`,
+                      FONT_SIZES.LARGE,
+                      false,
+                      { after: SPACING.SMALL }
+                    )
+                  );
+                });
+              }
+            });
+
+            // Add total settlement demand
+            if (structuredDamages.totalSettlementDemand) {
+              sections.push(
+                createTextParagraph(
+                  `Total Settlement Demand: $${structuredDamages.totalSettlementDemand.toLocaleString()}`,
+                  FONT_SIZES.LARGE,
+                  true,
+                  { after: SPACING.REGULAR }
+                )
+              );
+            }
+          } else {
+            // Handle legacy single person structure
+            // Special Damages
+            if (structuredDamages.specialDamages) {
+              sections.push(
+                createTextParagraph(
+                  `1.  Special Damages – $${structuredDamages.specialDamages.total.toLocaleString()}`,
+                  FONT_SIZES.LARGE,
+                  true,
+                  { after: SPACING.SMALL }
+                )
+              );
+              structuredDamages.specialDamages.items.forEach((item) => {
+                sections.push(
+                  createTextParagraph(
+                    `     ○  ${item.description}: $${item.amount.toLocaleString()}`,
+                    FONT_SIZES.LARGE,
+                    false,
+                    { after: SPACING.SMALL }
+                  )
+                );
+              });
+              sections.push(
+                createTextParagraph(
+                  `     ○  Total Past Medical Expenses: $${structuredDamages.specialDamages.total.toLocaleString()}`,
+                  FONT_SIZES.LARGE,
+                  false,
+                  { after: SPACING.REGULAR }
+                )
+              );
+            }
+
+            // Future Medical Expenses
+            if (structuredDamages.futureMedicalExpenses) {
+              sections.push(
+                createTextParagraph(
+                  `2.  Future Medical Expenses – $${structuredDamages.futureMedicalExpenses.total.toLocaleString()}`,
+                  FONT_SIZES.LARGE,
+                  true,
+                  { after: SPACING.SMALL }
+                )
+              );
+              structuredDamages.futureMedicalExpenses.items.forEach((item, index) => {
+                const letter = String.fromCharCode(97 + index); // a, b, c, ...
+                sections.push(
+                  createTextParagraph(
+                    `     ${letter}.  ${item.description}: $${item.amount.toLocaleString()}`,
+                    FONT_SIZES.LARGE,
+                    false,
+                    { after: SPACING.SMALL }
+                  )
+                );
+              });
+              sections.push(new Paragraph({ spacing: { after: SPACING.REGULAR } }));
+            }
+
+            // General Damages
+            if (structuredDamages.generalDamages) {
+              sections.push(
+                createTextParagraph(
+                  `3.  General Damages – $${structuredDamages.generalDamages.total.toLocaleString()}`,
+                  FONT_SIZES.LARGE,
+                  true,
+                  { after: SPACING.SMALL }
+                )
+              );
+              structuredDamages.generalDamages.items.forEach((item, index) => {
+                const letter = String.fromCharCode(97 + index); // a, b, c, ...
+                sections.push(
+                  createTextParagraph(
+                    `     ${letter}.  ${item}`,
+                    FONT_SIZES.LARGE,
+                    false,
+                    { after: SPACING.SMALL }
+                  )
+                );
+              });
+            }
+          }
+        } else if (Array.isArray(section.content)) {
           section.content.forEach((item) => {
             sections.push(
               createTextParagraph(`• ${item}`, FONT_SIZES.LARGE, false, {
@@ -534,6 +904,32 @@ export async function POST(request: NextRequest) {
               after: SPACING.LARGE,
             })
           );
+
+          // Add images if present
+          if (exhibit.images && exhibit.images.length > 0) {
+            exhibit.images.forEach((image) => {
+              try {
+                const imageBuffer = base64ToBuffer(image);
+                sections.push(
+                  new Paragraph({
+                    children: [
+                      new ImageRun({
+                        data: imageBuffer,
+                        transformation: {
+                          width: 500,
+                          height: 375,
+                        },
+                      }),
+                    ],
+                    alignment: AlignmentType.CENTER,
+                    spacing: { after: SPACING.LARGE },
+                  })
+                );
+              } catch (error) {
+                console.error("Error adding image to exhibit:", error);
+              }
+            });
+          }
         });
       }
 
@@ -559,13 +955,78 @@ export async function POST(request: NextRequest) {
     };
 
     // Create document sections
-    const documentSections: Paragraph[] = [];
+    let documentSections: (Paragraph | Table)[] = [];
 
     if (pleadingPaper) {
-      // Use optimized content builder and converter (paragraph-based)
-      const contentLines = buildPleadingContentLines();
-      const pleadingParagraphs = createPleadingContent(contentLines);
-      documentSections.push(...pleadingParagraphs);
+      // Use the same sections as regular format, but wrap in pleading paper table
+      const regularSections = buildRegularFormatSections();
+
+      // Convert sections to pleading paper format with line numbers
+      let lineNumber = 1;
+      const pleadingRows: TableRow[] = [];
+
+      regularSections.forEach((paragraph) => {
+        const row = new TableRow({
+          children: [
+            // Line number cell (left margin) - narrower
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: lineNumber.toString(),
+                      size: FONT_SIZES.SMALL,
+                    }),
+                  ],
+                  alignment: AlignmentType.CENTER,
+                }),
+              ],
+              width: { size: 400, type: WidthType.DXA }, // Fixed width in twips (about 0.28 inches)
+              borders: {
+                top: { style: BorderStyle.NONE },
+                bottom: { style: BorderStyle.NONE },
+                left: { style: BorderStyle.NONE },
+                right: { style: BorderStyle.SINGLE, size: 6, color: "000000" },
+              },
+              verticalAlign: VerticalAlign.TOP,
+              margins: {
+                top: 0,
+                bottom: 0,
+                left: 20,
+                right: 100,
+              },
+            }),
+            // Content cell - much wider
+            new TableCell({
+              children: [paragraph],
+              borders: {
+                top: { style: BorderStyle.NONE },
+                bottom: { style: BorderStyle.NONE },
+                left: { style: BorderStyle.NONE },
+                right: { style: BorderStyle.SINGLE, size: 6, color: "000000" },
+              },
+              verticalAlign: VerticalAlign.TOP,
+              margins: {
+                top: 0,
+                bottom: 0,
+                left: 200,
+                right: 200,
+              },
+            }),
+          ],
+          cantSplit: true,
+        });
+
+        pleadingRows.push(row);
+        lineNumber++;
+      });
+
+      const pleadingTable = new Table({
+        rows: pleadingRows,
+        width: { size: 100, type: WidthType.PERCENTAGE },
+      });
+
+      documentSections.push(pleadingTable);
     } else {
       // Regular format (existing code)
       documentSections.push(
@@ -757,7 +1218,266 @@ export async function POST(request: NextRequest) {
           })
         );
 
-        if (Array.isArray(section.content)) {
+        // Special handling for damages section - ALWAYS use structured format
+        if (section.key === 'damages') {
+          const damagesContent = section.content as string | DamagesBreakdown;
+
+          // Convert to structured format if string
+          const structuredDamages = typeof damagesContent === 'string'
+            ? parseStringDamages(damagesContent)
+            : damagesContent;
+
+          // Handle new multi-person structure
+          if (structuredDamages.people && Array.isArray(structuredDamages.people)) {
+            // Add opening paragraph with total settlement demand
+            const totalDemand = structuredDamages.totalSettlementDemand || 0;
+            const totalDemandStr = typeof totalDemand === 'number' ? totalDemand.toLocaleString() : '0';
+            documentSections.push(
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: `Based on the foregoing, we demand payment in the amount of $${totalDemandStr} to settle claims arising from this incident. Please contact the undersigned to discuss settlement within thirty (30) days of receipt of this letter.`,
+                    size: 20,
+                  }),
+                ],
+                spacing: { after: 200 },
+              })
+            );
+
+            // Process each person's damages
+            structuredDamages.people.forEach((person) => {
+              // Special Damages for this person
+              if (person.specialDamages && typeof person.specialDamages.total === 'number') {
+                documentSections.push(
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: `• Special Damages for ${person.name} (Past Medical Expenses): $ – $${person.specialDamages.total.toLocaleString()}`,
+                        bold: true,
+                        size: 20,
+                      }),
+                    ],
+                    spacing: { after: 100 },
+                  })
+                );
+                if (Array.isArray(person.specialDamages.items)) {
+                  person.specialDamages.items.forEach((item) => {
+                    const amount = typeof item.amount === 'number' ? item.amount.toLocaleString() : '0';
+                    documentSections.push(
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: `  ○ ${item.description} $${amount}`,
+                            size: 20,
+                          }),
+                        ],
+                        spacing: { after: 100 },
+                      })
+                    );
+                  });
+                }
+                documentSections.push(
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: `  ○ Total (Actual Past Bills) $${person.specialDamages.total.toLocaleString()}`,
+                        size: 20,
+                      }),
+                    ],
+                    spacing: { after: 150 },
+                  })
+                );
+              }
+
+              // Future Medical Expenses for this person
+              if (person.futureMedicalExpenses && typeof person.futureMedicalExpenses.total === 'number') {
+                documentSections.push(
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: `• Future Medical Expenses for ${person.name}: $${person.futureMedicalExpenses.total.toLocaleString()}`,
+                        bold: true,
+                        size: 20,
+                      }),
+                    ],
+                    spacing: { after: 100 },
+                  })
+                );
+                if (Array.isArray(person.futureMedicalExpenses.items)) {
+                  person.futureMedicalExpenses.items.forEach((item, index) => {
+                    const letter = String.fromCharCode(97 + index); // a, b, c, ...
+                    const amount = typeof item.amount === 'number' ? item.amount.toLocaleString() : '0';
+                    documentSections.push(
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: `  ${letter}. ${item.description}: $${amount}`,
+                            size: 20,
+                          }),
+                        ],
+                        spacing: { after: 100 },
+                      })
+                    );
+                  });
+                }
+                documentSections.push(
+                  new Paragraph({
+                    spacing: { after: 150 },
+                  })
+                );
+              }
+
+              // General Damages for this person
+              if (person.generalDamages && typeof person.generalDamages.total === 'number') {
+                documentSections.push(
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: `• General Damages for ${person.name} (Pain, Suffering, & Loss of Enjoyment): $${person.generalDamages.total.toLocaleString()}`,
+                        bold: true,
+                        size: 20,
+                      }),
+                    ],
+                    spacing: { after: 100 },
+                  })
+                );
+                if (Array.isArray(person.generalDamages.items)) {
+                  person.generalDamages.items.forEach((item, index) => {
+                    const letter = String.fromCharCode(97 + index); // a, b, c, ...
+                    documentSections.push(
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: `  ${letter}. ${item}`,
+                            size: 20,
+                          }),
+                        ],
+                        spacing: { after: 100 },
+                      })
+                    );
+                  });
+                }
+              }
+            });
+
+            // Add total settlement demand
+            if (typeof structuredDamages.totalSettlementDemand === 'number') {
+              documentSections.push(
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `Total Settlement Demand: $${structuredDamages.totalSettlementDemand.toLocaleString()}`,
+                      bold: true,
+                      size: 20,
+                    }),
+                  ],
+                  spacing: { after: 200 },
+                })
+              );
+            }
+          } else {
+            // Handle legacy single person structure
+            // Special Damages
+            if (structuredDamages.specialDamages) {
+              documentSections.push(
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `1.  Special Damages – $${structuredDamages.specialDamages.total.toLocaleString()}`,
+                      bold: true,
+                      size: 20,
+                    }),
+                  ],
+                  spacing: { after: 100 },
+                })
+              );
+              structuredDamages.specialDamages.items.forEach((item) => {
+                documentSections.push(
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: `     ○  ${item.description}: $${item.amount.toLocaleString()}`,
+                        size: 20,
+                      }),
+                    ],
+                    spacing: { after: 100 },
+                  })
+                );
+              });
+              documentSections.push(
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `     ○  Total Past Medical Expenses: $${structuredDamages.specialDamages.total.toLocaleString()}`,
+                      size: 20,
+                    }),
+                  ],
+                  spacing: { after: 150 },
+                })
+              );
+            }
+
+            // Future Medical Expenses
+            if (structuredDamages.futureMedicalExpenses) {
+              documentSections.push(
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `2.  Future Medical Expenses – $${structuredDamages.futureMedicalExpenses.total.toLocaleString()}`,
+                      bold: true,
+                      size: 20,
+                    }),
+                  ],
+                  spacing: { after: 100 },
+                })
+              );
+              structuredDamages.futureMedicalExpenses.items.forEach((item, index) => {
+                const letter = String.fromCharCode(97 + index); // a, b, c, ...
+                documentSections.push(
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: `     ${letter}.  ${item.description}: $${item.amount.toLocaleString()}`,
+                        size: 20,
+                      }),
+                    ],
+                    spacing: { after: 100 },
+                  })
+                );
+              });
+            }
+
+            // General Damages
+            if (structuredDamages.generalDamages) {
+              documentSections.push(
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `3.  General Damages – $${structuredDamages.generalDamages.total.toLocaleString()}`,
+                      bold: true,
+                      size: 20,
+                    }),
+                  ],
+                  spacing: { after: 100 },
+                })
+              );
+              structuredDamages.generalDamages.items.forEach((item, index) => {
+                const letter = String.fromCharCode(97 + index); // a, b, c, ...
+                documentSections.push(
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: `     ${letter}.  ${item}`,
+                        size: 20,
+                      }),
+                    ],
+                    spacing: { after: 100 },
+                  })
+                );
+              });
+            }
+          }
+        } else if (Array.isArray(section.content)) {
           section.content.forEach((item) => {
             documentSections.push(
               new Paragraph({
@@ -829,11 +1549,37 @@ export async function POST(request: NextRequest) {
               spacing: { after: 200 },
             })
           );
+
+          // Add images if present
+          if (exhibit.images && exhibit.images.length > 0) {
+            exhibit.images.forEach((image) => {
+              try {
+                const imageBuffer = base64ToBuffer(image);
+                documentSections.push(
+                  new Paragraph({
+                    children: [
+                      new ImageRun({
+                        data: imageBuffer,
+                        transformation: {
+                          width: 500,
+                          height: 375,
+                        },
+                      }),
+                    ],
+                    alignment: AlignmentType.CENTER,
+                    spacing: { after: 200 },
+                  })
+                );
+              } catch (error) {
+                console.error("Error adding image to exhibit:", error);
+              }
+            });
+          }
         });
       }
 
-      // Add closing
-      documentSections.push(
+      // Add closing - use the same demand amount from DAMAGES section
+      const closingDemands: Paragraph[] = [
         new Paragraph({
           children: [
             new TextRun({
@@ -845,10 +1591,36 @@ export async function POST(request: NextRequest) {
           heading: HeadingLevel.HEADING_2,
           spacing: { before: 300, after: 200 },
         }),
+      ];
+
+      // Extract settlement demand from damages section
+      let settlementDemandAmount: string | null = null;
+      const damagesSection = dynamicSections.find((s) => s.key === 'damages');
+      if (damagesSection) {
+        const damagesContent = damagesSection.content as string | DamagesBreakdown;
+        const structuredDamages = typeof damagesContent === 'string'
+          ? parseStringDamages(damagesContent)
+          : damagesContent;
+
+        if (structuredDamages.people && Array.isArray(structuredDamages.people)) {
+          // New multi-person structure
+          if (typeof structuredDamages.totalSettlementDemand === 'number') {
+            settlementDemandAmount = structuredDamages.totalSettlementDemand.toLocaleString();
+          }
+        } else if (structuredDamages.specialDamages) {
+          // Legacy structure - calculate from special damages total
+          settlementDemandAmount = structuredDamages.specialDamages.total.toLocaleString();
+        }
+      }
+
+      // Use settlement demand from damages, or fallback to totalMedicalExpenses
+      const demandAmount = settlementDemandAmount || letterData.totalMedicalExpenses.toLocaleString();
+
+      closingDemands.push(
         new Paragraph({
           children: [
             new TextRun({
-              text: `Based on the foregoing, we demand payment in the amount of $${letterData.totalMedicalExpenses.toLocaleString()} to settle all claims arising from this incident. Please contact the undersigned to discuss settlement within thirty (30) days of receipt of this letter.`,
+              text: `Based on the foregoing, we demand payment in the amount of $${demandAmount} to settle claims arising from this incident. Please contact the undersigned to discuss settlement within thirty (30) days of receipt of this letter.`,
               size: 20,
             }),
           ],
@@ -882,6 +1654,8 @@ export async function POST(request: NextRequest) {
           ],
         })
       );
+
+      documentSections.push(...closingDemands);
     }
 
     // Create the document

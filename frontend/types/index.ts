@@ -65,25 +65,29 @@ export interface Exhibit {
   images?: string[]; // Array of Base64 encoded image data
 }
 
-export interface DamagesBreakdown {
-  specialDamages?: {
-    total: number;
-    items: Array<{
-      description: string;
-      amount: number;
-    }>;
-  };
-  futureMedicalExpenses?: {
-    total: number;
-    items: Array<{
-      description: string;
-      amount: number;
-    }>;
-  };
+export interface DamagesCategoryItem {
+  description: string;
+  amount: number;
+}
+
+export interface DamagesCategory {
+  total: number;
+  items: DamagesCategoryItem[];
+}
+
+export interface PersonDamages {
+  name: string;
+  specialDamages?: DamagesCategory;
+  futureMedicalExpenses?: DamagesCategory;
   generalDamages?: {
     total: number;
     items: string[];
   };
+}
+
+export interface DamagesBreakdown {
+  people: PersonDamages[];
+  totalSettlementDemand: number;
 }
 
 export interface GlobalAnalysis {

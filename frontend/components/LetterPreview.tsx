@@ -61,60 +61,138 @@ const LetterPreview: React.FC<LetterPreviewProps> = ({
   const renderSectionContent = (value: any, key?: string) => {
     // Special handling for structured damages
     if (key === 'damages' && typeof value === 'object' && value !== null && !Array.isArray(value)) {
-      return (
-        <div className="damages-breakdown">
-          {/* Special Damages */}
-          {value.specialDamages && (
-            <div className="damage-section">
-              <h4>
-                <strong>1. Special Damages – ${value.specialDamages.total.toLocaleString()}</strong>
-              </h4>
-              <ul>
-                {value.specialDamages.items.map((item: any, idx: number) => (
-                  <li key={idx}>
-                    ○ {item.description}: ${item.amount.toLocaleString()}
-                  </li>
-                ))}
-                <li>
-                  ○ Total Past Medical Expenses: ${value.specialDamages.total.toLocaleString()}
-                </li>
-              </ul>
-            </div>
-          )}
+      // Handle new multi-person structure
+      if (value.people && Array.isArray(value.people)) {
+        return (
+          <div className="damages-breakdown">
+            {/* Render each person's damages */}
+            {value.people.map((person: any, personIdx: number) => (
+              <div key={personIdx} className="person-damages">
+                {/* Opening paragraph for settlement demand */}
+                {personIdx === 0 && (
+                  <p>
+                    Based on the foregoing, we demand payment in the amount of <strong>${value.totalSettlementDemand?.toLocaleString() || '0'}</strong> to settle claims arising from this incident. Please contact the undersigned to discuss settlement within thirty (30) days of receipt of this letter.
+                  </p>
+                )}
 
-          {/* Future Medical Expenses */}
-          {value.futureMedicalExpenses && (
-            <div className="damage-section">
-              <h4>
-                <strong>2. Future Medical Expenses – ${value.futureMedicalExpenses.total.toLocaleString()}</strong>
-              </h4>
-              <ul>
-                {value.futureMedicalExpenses.items.map((item: any, idx: number) => (
-                  <li key={idx}>
-                    {String.fromCharCode(97 + idx)}. {item.description}: ${item.amount.toLocaleString()}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+                {/* Special Damages for this person */}
+                {person.specialDamages && (
+                  <div className="damage-section">
+                    <p className="damages-heading">
+                      <strong>• Special Damages for {person.name} (Past Medical Expenses): $ – ${person.specialDamages.total.toLocaleString()}</strong>
+                    </p>
+                    <ul>
+                      {person.specialDamages.items.map((item: any, idx: number) => (
+                        <li key={idx}>
+                          ○ {item.description} ${item.amount.toLocaleString()}
+                        </li>
+                      ))}
+                      <li>
+                        ○ Total (Actual Past Bills) ${person.specialDamages.total.toLocaleString()}
+                      </li>
+                    </ul>
+                  </div>
+                )}
 
-          {/* General Damages */}
-          {value.generalDamages && (
-            <div className="damage-section">
-              <h4>
-                <strong>3. General Damages – ${value.generalDamages.total.toLocaleString()}</strong>
-              </h4>
-              <ul>
-                {value.generalDamages.items.map((item: string, idx: number) => (
-                  <li key={idx}>
-                    {String.fromCharCode(97 + idx)}. {item}
+                {/* Future Medical Expenses for this person */}
+                {person.futureMedicalExpenses && (
+                  <div className="damage-section">
+                    <p className="damages-heading">
+                      <strong>• Future Medical Expenses for {person.name}: ${person.futureMedicalExpenses.total.toLocaleString()}</strong>
+                    </p>
+                    <ul>
+                      {person.futureMedicalExpenses.items.map((item: any, idx: number) => (
+                        <li key={idx}>
+                          {String.fromCharCode(97 + idx)}. {item.description}: ${item.amount.toLocaleString()}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* General Damages for this person */}
+                {person.generalDamages && (
+                  <div className="damage-section">
+                    <p className="damages-heading">
+                      <strong>• General Damages for {person.name} (Pain, Suffering, & Loss of Enjoyment): ${person.generalDamages.total.toLocaleString()}</strong>
+                    </p>
+                    <ul>
+                      {person.generalDamages.items.map((item: string, idx: number) => (
+                        <li key={idx}>
+                          {String.fromCharCode(97 + idx)}. {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {/* Total Settlement Demand */}
+            {value.totalSettlementDemand && (
+              <p className="settlement-total">
+                <strong>Total Settlement Demand: ${value.totalSettlementDemand.toLocaleString()}</strong>
+              </p>
+            )}
+          </div>
+        );
+      } else {
+        // Handle legacy single person structure for backward compatibility
+        return (
+          <div className="damages-breakdown">
+            {/* Special Damages */}
+            {value.specialDamages && (
+              <div className="damage-section">
+                <h4>
+                  <strong>1. Special Damages – ${value.specialDamages.total.toLocaleString()}</strong>
+                </h4>
+                <ul>
+                  {value.specialDamages.items.map((item: any, idx: number) => (
+                    <li key={idx}>
+                      ○ {item.description}: ${item.amount.toLocaleString()}
+                    </li>
+                  ))}
+                  <li>
+                    ○ Total Past Medical Expenses: ${value.specialDamages.total.toLocaleString()}
                   </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      );
+                </ul>
+              </div>
+            )}
+
+            {/* Future Medical Expenses */}
+            {value.futureMedicalExpenses && (
+              <div className="damage-section">
+                <h4>
+                  <strong>2. Future Medical Expenses – ${value.futureMedicalExpenses.total.toLocaleString()}</strong>
+                </h4>
+                <ul>
+                  {value.futureMedicalExpenses.items.map((item: any, idx: number) => (
+                    <li key={idx}>
+                      {String.fromCharCode(97 + idx)}. {item.description}: ${item.amount.toLocaleString()}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* General Damages */}
+            {value.generalDamages && (
+              <div className="damage-section">
+                <h4>
+                  <strong>3. General Damages – ${value.generalDamages.total.toLocaleString()}</strong>
+                </h4>
+                <ul>
+                  {value.generalDamages.items.map((item: string, idx: number) => (
+                    <li key={idx}>
+                      {String.fromCharCode(97 + idx)}. {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        );
+      }
     }
 
     // Array rendering
